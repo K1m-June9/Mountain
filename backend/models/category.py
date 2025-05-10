@@ -1,18 +1,16 @@
-# 기관 모델
 from sqlalchemy import Column, Integer, String, Text, DateTime, func
 from sqlalchemy.orm import relationship
 
 from backend.database import Base
 
 
-class Institution(Base):
-    __tablename__ = "institutions"
+class Category(Base):
+    __tablename__ = "categories"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), unique=True, nullable=False, index=True)
+    name = Column(String(50), unique=True, nullable=False, index=True)
     description = Column(Text)
     created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relationships
-    posts = relationship("Post", back_populates="institution")
+    posts = relationship("Post", back_populates="category")
