@@ -3,7 +3,9 @@ import os
 import secrets
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import AnyHttpUrl, BaseSettings, PostgresDsn, validator
+# 이 줄을 수정
+from pydantic import AnyHttpUrl, PostgresDsn, validator
+from pydantic_settings import BaseSettings  # 이 줄을 추가
 
 
 class Settings(BaseSettings):
@@ -27,8 +29,8 @@ class Settings(BaseSettings):
     
     # MySQL 설정
     MYSQL_SERVER: str = os.getenv("MYSQL_SERVER", "localhost")
-    MYSQL_USER: str = os.getenv("MYSQL_USER", "root")
-    MYSQL_PASSWORD: str = os.getenv("MYSQL_PASSWORD", "")
+    MYSQL_USER: str = os.getenv("MYSQL_USER", "mountain_user")
+    MYSQL_PASSWORD: str = os.getenv("MYSQL_PASSWORD", "1111")
     MYSQL_DB: str = os.getenv("MYSQL_DB", "mountain_community")
     SQLALCHEMY_DATABASE_URI: Optional[str] = None
 
