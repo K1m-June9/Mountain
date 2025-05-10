@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from backend import models, schemas
 from backend.api import deps
+from backend.core import security
 
 router = APIRouter()
 
