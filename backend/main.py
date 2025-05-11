@@ -24,6 +24,13 @@ if settings.BACKEND_CORS_ORIGINS:
 # API 라우터 포함
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # 프론트엔드 URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def root():
