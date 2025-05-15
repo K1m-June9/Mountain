@@ -1,5 +1,7 @@
-from typing import Any, List
+from typing import Any, List, Optional
 
+from typing import Any, Dict
+from sqlalchemy import func
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -95,3 +97,30 @@ def update_user_me(
     db.commit()
     
     return current_user
+
+@router.get("/{user_id}/stats", response_model=Dict[str, int])
+def get_user_stats(
+    user_id: int,
+    db: Session = Depends(deps.get_db),
+    current_user: Optional[models.User] = Depends(deps.get_current_user),
+) -> Any:
+    """
+    사용자 통계 정보 조회 (게시글 수, 댓글 수, 좋아요 수)
+    """
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # 게시물, 댓글, 좋아요 수 계산
+    post_count = db.query(func.count(models.Post.id)).filter(models.Post.user_id == user_id).scalar()
+    comment_count = db.query(func.count(models.Comment.id)).filter(models.Comment.user_id == user_id).scalar()
+    like_count = db.query(func.count(models.Reaction.id)).filter(
+        models.Reaction.user_id == user_id,
+        models.Reaction.type == "like"
+    ).scalar()
+    
+    return {
+        "post_count": post_count,
+        "comment_count": comment_count,
+        "like_count": like_count
+    }

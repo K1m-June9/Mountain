@@ -90,3 +90,47 @@ def register_user(
     db.commit()
     
     return user
+
+# backend/api/endpoints/auth.py에 추가
+
+@router.post("/change-password", response_model=schemas.User)
+def change_password(
+    *,
+    db: Session = Depends(deps.get_db),
+    password_data: schemas.PasswordChange,
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    사용자 비밀번호 변경 (현재 비밀번호 검증 포함)
+    """
+    # 현재 비밀번호 검증
+    if not security.verify_password(password_data.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password",
+        )
+    
+    # 새 비밀번호 유효성 검사 (필요한 경우)
+    if len(password_data.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters long",
+        )
+    
+    # 비밀번호 업데이트
+    current_user.password_hash = security.get_password_hash(password_data.new_password)
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    
+    # 활동 로그 기록
+    activity_log = models.ActivityLog(
+        user_id=current_user.id,
+        action_type="change_password",
+        description=f"User {current_user.username} changed password",
+        ip_address="127.0.0.1"  # 실제 구현에서는 요청의 IP 주소를 가져와야 함
+    )
+    db.add(activity_log)
+    db.commit()
+    
+    return current_user
