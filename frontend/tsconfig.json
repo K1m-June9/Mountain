@@ -13,6 +13,7 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+    "noImplicitAny": false,  // 암시적 any 허용
     "plugins": [
       {
         "name": "next"
