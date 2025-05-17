@@ -21,7 +21,23 @@ export class InstitutionService {
    * @returns 페이지네이션된 기관 목록
    */
   async getInstitutions(params?: InstitutionFilter): Promise<ApiResult<PaginatedData<Institution>>> {
-    return await api.get<PaginatedData<Institution>>("/institutions", params);
+    const result = await api.get<Institution[]>("/institutions", params);
+    
+    // 백엔드 응답을 PaginatedData 형식으로 변환
+    if (result.success && Array.isArray(result.data)) {
+      return {
+        success: true,
+        data: {
+          items: result.data,
+          total: result.data.length,
+          page: 1, // 백엔드에서 페이지 정보가 없으므로 기본값 사용
+          limit: params?.limit || 100
+        },
+        meta: result.meta
+      };
+    }
+    
+    return result as any;
   }
 
   /**
@@ -71,7 +87,23 @@ export class InstitutionService {
     institutionId: ID,
     params?: PaginationParams
   ): Promise<ApiResult<PaginatedData<PostWithDetails>>> {
-    return await api.get<PaginatedData<PostWithDetails>>(`/institutions/${institutionId}/posts`, params);
+    const result = await api.get<PostWithDetails[]>(`/institutions/${institutionId}/posts`, params);
+    
+    // 백엔드 응답을 PaginatedData 형식으로 변환
+    if (result.success && Array.isArray(result.data)) {
+      return {
+        success: true,
+        data: {
+          items: result.data,
+          total: result.data.length,
+          page: 1, // 백엔드에서 페이지 정보가 없으므로 기본값 사용
+          limit: params?.limit || 10
+        },
+        meta: result.meta
+      };
+    }
+    
+    return result as any;
   }
 
   /**
@@ -84,10 +116,26 @@ export class InstitutionService {
     query: string,
     params?: PaginationParams
   ): Promise<ApiResult<PaginatedData<Institution>>> {
-    return await api.get<PaginatedData<Institution>>("/institutions", {
+    const result = await api.get<Institution[]>("/institutions", {
       ...params,
       search: query
     });
+    
+    // 백엔드 응답을 PaginatedData 형식으로 변환
+    if (result.success && Array.isArray(result.data)) {
+      return {
+        success: true,
+        data: {
+          items: result.data,
+          total: result.data.length,
+          page: 1, // 백엔드에서 페이지 정보가 없으므로 기본값 사용
+          limit: params?.limit || 10
+        },
+        meta: result.meta
+      };
+    }
+    
+    return result as any;
   }
 }
 

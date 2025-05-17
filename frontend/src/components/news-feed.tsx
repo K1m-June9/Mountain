@@ -1,3 +1,4 @@
+"use client"
 // src/components/news-feed.tsx
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"

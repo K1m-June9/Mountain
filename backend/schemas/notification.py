@@ -28,4 +28,4 @@ class Notification(NotificationBase):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # orm_mode 대신 from_attributes 사용

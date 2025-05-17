@@ -1,7 +1,7 @@
 # 의존성 주입 함수들
 from typing import Generator, Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt
 from pydantic import ValidationError
@@ -45,7 +45,7 @@ def get_current_user(
 def get_current_active_user(
     current_user: models.User = Depends(get_current_user),
 ) -> models.User:
-    if not current_user.is_active:
+    if current_user.status != "active":
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
@@ -53,8 +53,38 @@ def get_current_active_user(
 def get_current_active_superuser(
     current_user: models.User = Depends(get_current_user),
 ) -> models.User:
-    if not current_user.is_superuser:
+    if current_user.role != "admin":
         raise HTTPException(
             status_code=400, detail="The user doesn't have enough privileges"
         )
     return current_user
+
+
+# 선택적 인증을 위한 클래스 및 함수 추가
+class OAuth2PasswordBearerOptional(OAuth2PasswordBearer):
+    async def __call__(self, request: Request) -> Optional[str]:
+        try:
+            return await super().__call__(request)
+        except HTTPException:
+            return None
+
+
+# 선택적 OAuth2 스키마 인스턴스 생성
+oauth2_scheme_optional = OAuth2PasswordBearerOptional(tokenUrl=f"{settings.API_V1_STR}/auth/login")
+
+
+# 선택적 인증을 위한 의존성 함수
+def get_optional_current_user(
+    db: Session = Depends(get_db), token: Optional[str] = Depends(oauth2_scheme_optional)
+) -> Optional[models.User]:
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
+        )
+        token_data = schemas.TokenPayload(**payload)
+    except (jwt.JWTError, ValidationError):
+        return None
+    user = db.query(models.User).filter(models.User.id == token_data.sub).first()
+    return user

@@ -80,12 +80,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth()
   }, [])
 
-  // 로그인 함수
+  //로그인함수수정
   const login = async (credentials: LoginRequest): Promise<{ success: boolean; message?: string; user?: User }> => {
     try {
       const result = await authService.login(credentials)
+      console.log('Login result:', result);
 
       if (result.success && result.data) {
+        console.log('Token saved:', !!result.data.access_token);
         // 사용자 정보 가져오기
         const userResult = await userService.getCurrentUserProfile()
         
@@ -100,9 +102,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       
+      // 에러 메시지 처리 개선
+      let errorMessage = "로그인에 실패했습니다.";
+      
+      if (result.error?.message) {
+        // 객체인 경우 처리
+        if (typeof result.error.message === 'object') {
+          try {
+            // 이미 문자열로 변환된 JSON인 경우
+            const errorObj = typeof result.error.message === 'string' 
+              ? JSON.parse(result.error.message) 
+              : result.error.message;
+            
+            // FastAPI 유효성 검사 오류 형식인 경우
+            if (Array.isArray(errorObj) && errorObj.length > 0 && errorObj[0].type) {
+              // 필드별 오류 메시지 추출
+              const fieldErrors = errorObj.map(err => {
+                const field = err.loc[err.loc.length - 1];
+                
+                // 필드명을 사용자 친화적으로 변환
+                const fieldName = field === 'username' ? '아이디' : 
+                                field === 'password' ? '비밀번호' : field;
+                
+                return `${fieldName}${err.msg === 'Field required' ? '를 입력해주세요.' : '가 올바르지 않습니다.'}`;
+              });
+              
+              errorMessage = fieldErrors.join(' ');
+            } else {
+              // 기타 객체 형태의 오류
+              errorMessage = "로그인 정보가 올바르지 않습니다.";
+            }
+          } catch (e) {
+            // JSON 파싱 실패 시 기본 메시지 사용
+            errorMessage = "로그인에 실패했습니다.";
+          }
+        } else {
+          // 문자열인 경우 그대로 사용
+          errorMessage = result.error.message;
+        }
+      }
+      
       return { 
         success: false, 
-        message: result.error?.message || "로그인에 실패했습니다." 
+        message: errorMessage
       }
     } catch (error) {
       console.error("Login failed:", error)

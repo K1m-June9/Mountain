@@ -10,6 +10,7 @@ from backend.models.notification import Notification
 from backend.models.notice import Notice
 from backend.models.activity_log import ActivityLog
 from backend.models.setting import Setting
+from backend.models.restriction_history import RestrictionHistory
 #데이터베이스 스키마를 정의하는 역할
 # 모든 모델을 여기에 나열하여 alembic이 감지할 수 있도록 합니다
 __all__ = [
@@ -25,5 +26,6 @@ __all__ = [
     "Notification",
     "Notice",
     "ActivityLog",
-    "Setting"
+    "Setting",
+    "RestrictionHistory"
 ]

@@ -17,7 +17,7 @@ def read_posts(
     limit: int = 50,
     category_id: Optional[int] = None,
     institution_id: Optional[int] = None,
-    current_user: Optional[models.User] = Depends(deps.get_current_user),
+    current_user: Optional[models.User] = Depends(deps.get_optional_current_user),
 ) -> Any:
     """
     게시물 목록 조회
@@ -64,11 +64,11 @@ def read_posts(
         
         # PostWithDetails 객체 생성
         post_dict = {
-            **schemas.Post.from_orm(post).dict(),
-            "user": schemas.User.from_orm(post.user),
-            "institution": schemas.Institution.from_orm(post.institution) if post.institution else None,
-            "category": schemas.Category.from_orm(post.category) if post.category else None,
-            "images": [schemas.PostImage.from_orm(image) for image in post.images],
+            **schemas.Post.model_validate(post).model_dump(),
+            "user": schemas.User.model_validate(post.user),
+            "institution": schemas.Institution.model_validate(post.institution) if post.institution else None,
+            "category": schemas.Category.model_validate(post.category) if post.category else None,
+            "images": [schemas.PostImage.model_validate(image) for image in post.images],
             "comment_count": comment_count,
             "like_count": like_count,
             "dislike_count": dislike_count
@@ -89,7 +89,7 @@ def create_post(
     새 게시물 생성
     """
     post = models.Post(
-        **post_in.dict(),
+        **post_in.model_dump(),
         user_id=current_user.id
     )
     db.add(post)
@@ -150,11 +150,11 @@ def read_post(
     
     # PostWithDetails 객체 생성
     post_dict = {
-        **schemas.Post.from_orm(post).dict(),
-        "user": schemas.User.from_orm(post.user),
-        "institution": schemas.Institution.from_orm(post.institution) if post.institution else None,
-        "category": schemas.Category.from_orm(post.category) if post.category else None,
-        "images": [schemas.PostImage.from_orm(image) for image in post.images],
+        **schemas.Post.model_validate(post).model_dump(),
+        "user": schemas.User.model_validate(post.user),
+        "institution": schemas.Institution.model_validate(post.institution) if post.institution else None,
+        "category": schemas.Category.model_validate(post.category) if post.category else None,
+        "images": [schemas.PostImage.model_validate(image) for image in post.images],
         "comment_count": comment_count,
         "like_count": like_count,
         "dislike_count": dislike_count

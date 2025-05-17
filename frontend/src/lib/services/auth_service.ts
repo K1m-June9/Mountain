@@ -23,7 +23,16 @@ export class AuthService {
    * @returns 로그인 결과 및 사용자 정보
    */
   async login(credentials: LoginRequest): Promise<ApiResult<LoginResponse>> {
-    const response = await api.post<LoginResponse>("/auth/login", credentials);
+    // FastAPI OAuth2 형식에 맞게 데이터 변환
+    const formData = new URLSearchParams();
+    formData.append('username', credentials.username);
+    formData.append('password', credentials.password);
+    
+    const response = await api.post<LoginResponse>("/auth/login", formData, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
     
     if (response.success && response.data) {
       setLocalStorage(STORAGE_KEYS.ACCESS_TOKEN, response.data.access_token);

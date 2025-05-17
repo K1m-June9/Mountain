@@ -18,7 +18,7 @@ class PostImage(PostImageBase):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # orm_mode 대신 from_attributes 사용
 
 
 # 공통 속성
@@ -53,7 +53,7 @@ class Post(PostBase):
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # orm_mode 대신 from_attributes 사용
 
 
 # 상세 정보가 포함된 게시물

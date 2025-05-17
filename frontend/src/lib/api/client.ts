@@ -92,8 +92,11 @@ class ApiClient {
 
       // 인증 토큰 추가
       const token = this.getAccessToken();
+      console.log('Using token:', token ? 'Token exists' : 'No token');
+
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
+        console.log('Authorization header set');
       }
 
       const requestOptions: RequestInit = {
@@ -105,7 +108,23 @@ class ApiClient {
       };
 
       if (data) {
-        requestOptions.body = JSON.stringify(data);
+        // Content-Type에 따라 데이터 처리
+        if (headers["Content-Type"] === "application/x-www-form-urlencoded") {
+          // URLSearchParams 객체인 경우 그대로 사용
+          if (data instanceof URLSearchParams) {
+            requestOptions.body = data;
+          } else {
+            // 객체인 경우 URLSearchParams로 변환
+            const formData = new URLSearchParams();
+            Object.entries(data).forEach(([key, value]) => {
+              formData.append(key, String(value));
+            });
+            requestOptions.body = formData;
+          }
+        } else {
+          // 기본적으로 JSON으로 직렬화
+          requestOptions.body = JSON.stringify(data);
+        }
       }
 
       // 요청 시작 시간 기록 (디버깅용)
@@ -193,7 +212,13 @@ class ApiClient {
    * URL 생성
    */
   private buildUrl(endpoint: string, params?: Record<string, any>): string {
-    const url = new URL(`${API_BASE_URL}/api${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`);
+    // API_BASE_URL에 /api 경로를 추가하는 대신, URL 객체를 올바르게 생성
+    const baseUrl = API_BASE_URL;
+    // const apiPath = `/api${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+    // const url = new URL(apiPath, baseUrl);
+    // 끝에 슬래시(/) 추가
+    const apiPath = `/api${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}${endpoint.endsWith("/") ? "" : "/"}`;
+    const url = new URL(apiPath, baseUrl);
 
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
@@ -211,7 +236,18 @@ class ApiClient {
    */
   getAccessToken(): string | null {
     if (typeof window === "undefined") return null;
-    return localStorage.getItem(ACCESS_TOKEN_KEY);
+    
+    try {
+      const tokenData = localStorage.getItem(ACCESS_TOKEN_KEY);
+      if (!tokenData) return null;
+      
+      // JSON 파싱 시도
+      const parsedToken = JSON.parse(tokenData);
+      return parsedToken;
+    } catch (e) {
+      // 파싱 실패 시 원래 값 반환 (이전 버전과의 호환성을 위해)
+      return localStorage.getItem(ACCESS_TOKEN_KEY);
+    }
   }
 
   /**

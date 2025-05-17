@@ -21,7 +21,22 @@ export class NoticeService {
    * @returns 페이지네이션된 공지사항 목록
    */
   async getNotices(params?: NoticeFilter): Promise<ApiResult<PaginatedData<NoticeWithUser>>> {
-    return await api.get<PaginatedData<NoticeWithUser>>("/notices", params);
+    const result = await api.get<NoticeWithUser[]>("/notices", params);
+    
+    if (result.success && Array.isArray(result.data)) {
+      return {
+        success: true,
+        data: {
+          items: result.data,
+          total: result.data.length,
+          page: 1, // 백엔드에서 페이지 정보가 없으므로 기본값 사용
+          limit: params?.limit || 10
+        },
+        meta: result.meta
+      };
+    }
+    
+    return result as any;
   }
 
   /**
@@ -85,10 +100,25 @@ export class NoticeService {
    * @returns 페이지네이션된 중요 공지사항 목록
    */
   async getImportantNotices(params?: PaginationParams): Promise<ApiResult<PaginatedData<NoticeWithUser>>> {
-    return await api.get<PaginatedData<NoticeWithUser>>("/notices", { 
+    const result = await api.get<NoticeWithUser[]>("/notices", { 
       ...params,
       important_only: true 
     });
+    
+    if (result.success && Array.isArray(result.data)) {
+      return {
+        success: true,
+        data: {
+          items: result.data,
+          total: result.data.length,
+          page: 1, // 백엔드에서 페이지 정보가 없으므로 기본값 사용
+          limit: params?.limit || 10
+        },
+        meta: result.meta
+      };
+    }
+    
+    return result as any;
   }
 }
 

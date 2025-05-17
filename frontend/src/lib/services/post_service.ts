@@ -22,8 +22,45 @@ export class PostService {
    * @param filters 필터링 옵션
    * @returns 페이지네이션된 게시물 목록
    */
+  // async getPosts(filters?: PostFilter): Promise<ApiResult<PaginatedData<PostWithDetails>>> {
+  //   return await api.get<PaginatedData<PostWithDetails>>("/posts", filters);
+  // }
+  // async getPosts(filters?: PostFilter): Promise<ApiResult<PaginatedData<PostWithDetails>>> {
+  // // page 파라미터를 skip으로 변환
+  //   const params = { ...filters };
+  //   if (params.page) {
+  //     params.skip = (params.page - 1) * (params.limit || 10);
+  //     delete params.page;
+  //   }
+    
+  //   return await api.get<PaginatedData<PostWithDetails>>("/posts", params);
+  // }
+  // src/lib/services/post_service.ts의 getPosts 메서드 수정
   async getPosts(filters?: PostFilter): Promise<ApiResult<PaginatedData<PostWithDetails>>> {
-    return await api.get<PaginatedData<PostWithDetails>>("/posts", filters);
+    // page 파라미터를 skip으로 변환
+    const params = { ...filters };
+    if (params.page) {
+      params.skip = (params.page - 1) * (params.limit || 10);
+      delete params.page;
+    }
+    
+    const result = await api.get<PostWithDetails[]>("/posts", params);
+    
+    // 백엔드 응답을 PaginatedData 형식으로 변환
+    if (result.success && Array.isArray(result.data)) {
+      return {
+        success: true,
+        data: {
+          items: result.data,
+          total: result.data.length,
+          page: filters?.page || 1,
+          limit: filters?.limit || 10
+        },
+        meta: result.meta
+      };
+    }
+    
+    return result as any;
   }
 
   /**

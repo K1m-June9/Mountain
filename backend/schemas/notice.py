@@ -33,6 +33,7 @@ class Notice(NoticeBase):
 
     class Config:
         orm_mode = True
+        from_attributes : True
 
 
 # 작성자 정보가 포함된 공지사항

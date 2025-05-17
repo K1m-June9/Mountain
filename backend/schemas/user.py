@@ -33,7 +33,7 @@ class User(UserBase):
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # orm_mode 대신 from_attributes 사용
 
 
 # 데이터베이스에 저장되는 데이터
@@ -55,3 +55,25 @@ class UserRoleUpdate(BaseModel):
 class PasswordChange(BaseModel):
     current_password: str
     new_password: str
+
+    # 관리자용 사용자 상세 정보
+class AdminUserDetail(User):
+    post_count: int
+    comment_count: int
+    like_count: int
+    dislike_count: int
+    last_active: Optional[datetime] = None
+
+# 대시보드 통계 정보
+class DashboardStats(BaseModel):
+    userCount: int
+    activeUserCount: int
+    postCount: int
+    hiddenPostCount: int
+    commentCount: int
+    hiddenCommentCount: int
+    reportCount: int
+    pendingReportCount: int
+    newUserCount: int
+    newPostCount: int
+    newCommentCount: int

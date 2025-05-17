@@ -21,11 +21,25 @@ export default function InstitutionTabs({ activeInstitution }: InstitutionTabsPr
       setIsLoading(true)
       try {
         const response = await institutionService.getInstitutions()
+        console.log('Institution response:', response); // 디버깅용 로그 추가
+        
         if (response.success && response.data) {
-          setInstitutions(response.data.items)
+          // 데이터가 PaginatedData 형식인지 확인
+          if (response.data.items) {
+            setInstitutions(response.data.items);
+          } else if (Array.isArray(response.data)) {
+            // 백엔드가 직접 배열을 반환하는 경우를 대비
+            setInstitutions(response.data);
+          } else {
+            console.error('Unexpected data format:', response.data);
+            setInstitutions([]);
+          }
+        } else {
+          setInstitutions([]);
         }
       } catch (error) {
         console.error("기관 목록을 불러오는데 실패했습니다:", error)
+        setInstitutions([]);
       } finally {
         setIsLoading(false)
       }

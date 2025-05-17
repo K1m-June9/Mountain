@@ -34,13 +34,76 @@ def read_notices(
     # 작성자 정보 포함
     result = []
     for notice in notices:
-        notice_dict = {
-            **schemas.Notice.from_orm(notice).dict(),
-            "user": schemas.User.from_orm(notice.user)
+        # SQLAlchemy 모델을 딕셔너리로 변환
+        notice_data = {
+            "id": notice.id,
+            "title": notice.title,
+            "content": notice.content,
+            "is_important": notice.is_important,
+            "user_id": notice.user_id,
+            "created_at": notice.created_at,
+            "updated_at": notice.updated_at
         }
-        result.append(schemas.NoticeWithUser(**notice_dict))
+        
+        # 사용자 정보도 딕셔너리로 변환
+        user_data = {
+            "id": notice.user.id,
+            "username": notice.user.username,
+            "email": notice.user.email,
+            "updated_at": notice.user.updated_at,  # 이 필드 추가
+            "role": notice.user.role,
+            "is_active": notice.user.status == "active",
+            "created_at": notice.user.created_at
+        }
+        
+        # NoticeWithUser 스키마 생성
+        notice_with_user = schemas.NoticeWithUser(
+            **notice_data,
+            user=schemas.User(**user_data)
+        )
+        result.append(notice_with_user)
     
     return result
+
+@router.get("/{notice_id}", response_model=schemas.NoticeWithUser)
+def read_notice(
+    notice_id: int,
+    db: Session = Depends(deps.get_db),
+) -> Any:
+    """
+    특정 공지사항 조회
+    """
+    notice = db.query(models.Notice).filter(models.Notice.id == notice_id).first()
+    if not notice:
+        raise HTTPException(status_code=404, detail="Notice not found")
+    
+    # SQLAlchemy 모델을 딕셔너리로 변환
+    notice_data = {
+        "id": notice.id,
+        "title": notice.title,
+        "content": notice.content,
+        "is_important": notice.is_important,
+        "user_id": notice.user_id,
+        "created_at": notice.created_at,
+        "updated_at": notice.updated_at
+    }
+    
+    # 사용자 정보도 딕셔너리로 변환
+    user_data = {
+        "id": notice.user.id,
+        "username": notice.user.username,
+        "email": notice.user.email,
+        "updated_at": notice.user.updated_at,  # 이 필드 추가
+        "role": notice.user.role,
+        "is_active": notice.user.status == "active",
+        "created_at": notice.user.created_at
+    }
+    
+    # NoticeWithUser 스키마 생성
+    return schemas.NoticeWithUser(
+        **notice_data,
+        user=schemas.User(**user_data)
+    )
 
 
 @router.post("/", response_model=schemas.Notice)
@@ -75,27 +138,6 @@ def create_notice(
     db.commit()
     
     return notice
-
-
-@router.get("/{notice_id}", response_model=schemas.NoticeWithUser)
-def read_notice(
-    notice_id: int,
-    db: Session = Depends(deps.get_db),
-) -> Any:
-    """
-    특정 공지사항 조회
-    """
-    notice = db.query(models.Notice).filter(models.Notice.id == notice_id).first()
-    if not notice:
-        raise HTTPException(status_code=404, detail="Notice not found")
-    
-    # 작성자 정보 포함
-    notice_dict = {
-        **schemas.Notice.from_orm(notice).dict(),
-        "user": schemas.User.from_orm(notice.user)
-    }
-    
-    return schemas.NoticeWithUser(**notice_dict)
 
 
 @router.put("/{notice_id}", response_model=schemas.Notice)

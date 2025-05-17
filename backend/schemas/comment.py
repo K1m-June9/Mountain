@@ -32,7 +32,7 @@ class Comment(CommentBase):
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # orm_mode 대신 from_attributes 사용
 
 
 # 사용자 정보가 포함된 댓글
