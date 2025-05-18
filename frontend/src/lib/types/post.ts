@@ -1,16 +1,10 @@
-// src/lib/types/post.ts
-
-import { ID, Timestamps, BaseFilter } from './common';
+import { ID, Timestamps } from './common';
 import { User } from './user';
 import { Institution } from './institution';
 import { Category } from './category';
 
 /**
- * 게시물 관련 타입 정의
- */
-
-/**
- * 게시물 이미지
+ * 게시물 이미지 타입
  */
 export interface PostImage {
   id: ID;
@@ -20,26 +14,50 @@ export interface PostImage {
 }
 
 /**
- * 게시물 기본 정보
+ * 게시물 기본 타입
  */
-export interface Post extends Timestamps {
-  id: ID;
+export interface PostBase {
   title: string;
   content: string;
+  institution_id?: ID | null;
+  category_id?: ID | null;
+}
+
+/**
+ * 게시물 생성 요청 타입
+ */
+export interface PostCreateRequest extends PostBase {
+  // 추가 필드가 필요하면 여기에 정의
+}
+
+/**
+ * 게시물 수정 요청 타입
+ */
+export interface PostUpdateRequest {
+  title?: string;
+  content?: string;
+  institution_id?: ID | null;
+  category_id?: ID | null;
+  is_hidden?: boolean;
+}
+
+/**
+ * 게시물 기본 응답 타입
+ */
+export interface Post extends PostBase, Timestamps {
+  id: ID;
   user_id: ID;
-  institution_id?: ID;
-  category_id?: ID;
   view_count: number;
   is_hidden: boolean;
 }
 
 /**
- * 게시물 상세 정보 (API 응답)
+ * 게시물 상세 정보 타입
  */
 export interface PostWithDetails extends Post {
   user: User;
-  institution?: Institution;
-  category?: Category;
+  institution?: Institution | null;
+  category?: Category | null;
   images: PostImage[];
   comment_count: number;
   like_count: number;
@@ -47,39 +65,32 @@ export interface PostWithDetails extends Post {
 }
 
 /**
- * 게시물 생성 요청
+ * 게시물 필터 타입
  */
-export interface PostCreateRequest {
-  title: string;
-  content: string;
-  institution_id?: ID;
-  category_id?: ID;
-}
-
-/**
- * 게시물 업데이트 요청
- */
-export interface PostUpdateRequest {
-  title?: string;
-  content?: string;
-  institution_id?: ID;
-  category_id?: ID;
-  is_hidden?: boolean;
-}
-
-/**
- * 게시물 필터
- */
-export interface PostFilter extends BaseFilter {
+// src/lib/types/post.ts의 PostFilter 인터페이스 수정
+export interface PostFilter {
+  skip?: number;
+  limit?: number;
+  page?: number;  // 추가된 속성
   category_id?: ID;
   institution_id?: ID;
   user_id?: ID;
+  search?: string;
 }
 
 /**
- * 게시물 이미지 업로드 요청
+ * 게시물 반응 응답 타입
  */
-export interface PostImageUploadRequest {
+export interface PostReactionResponse {
+  like_count?: number;
+  dislike_count?: number;
+}
+
+/**
+ * 게시물 신고 요청 타입
+ */
+export interface PostReportRequest {
   post_id: ID;
-  image: File;
+  reason: string;
+  description?: string;
 }

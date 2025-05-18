@@ -6,9 +6,9 @@ import { ThemeProvider } from "@/contexts/theme-context"
 import { AuthProvider } from "@/contexts/auth-context"
 
 export const metadata: Metadata = {
-  title: "v0 App",
-  description: "Created with v0",
-  generator: "v0.dev",
+  title: "Mountain",
+  description: ".... . ._.. .__.   __ .",
+  generator: "Pumpkin.",
 }
 
 export default function RootLayout({

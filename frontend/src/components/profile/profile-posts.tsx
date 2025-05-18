@@ -1,3 +1,4 @@
+// src/components/profile/profile-posts.tsx
 "use client"
 
 import { useState, useEffect } from "react"
@@ -30,10 +31,11 @@ export default function ProfilePosts({ userId }: ProfilePostsProps) {
       setError(null)
       
       try {
-        // postService의 getPosts 메서드를 사용하여 특정 사용자의 게시물 조회
+        // 수정된 postService의 getPosts 메서드를 사용하여 특정 사용자의 게시물 조회
+        // page 속성을 사용하도록 변경
         const result = await postService.getPosts({
           user_id: userId,
-          skip: (page - 1) * pageSize,
+          page: page,
           limit: pageSize
         });
         

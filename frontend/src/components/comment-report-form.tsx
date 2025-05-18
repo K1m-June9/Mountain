@@ -16,8 +16,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-sonner"
-import reportService from "@/lib/services/report_service"
-import type { ReportCreateRequest } from "@/lib/types/report"
+import commentService from "@/lib/services/comment_service"
+import type { ReportCreate } from "@/lib/types/comment"
 import type { ID } from "@/lib/types/common"
 import {
   Select,
@@ -74,12 +74,12 @@ export default function CommentReportForm({
     setIsLoading(true)
     
     try {
-      const reportData: ReportCreateRequest = {
+      const reportData: ReportCreate = {
         reason,
         description: description.trim() || undefined,
       }
 
-      const result = await reportService.reportComment(commentId, reportData)
+      const result = await commentService.reportComment(commentId, reportData)
       
       if (result.success) {
         toast.success("신고가 접수되었습니다.")

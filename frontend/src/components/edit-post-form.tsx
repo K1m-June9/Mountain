@@ -1,3 +1,4 @@
+// src/components/edit-post-form.tsx
 "use client"
 
 import type React from "react"
@@ -63,7 +64,7 @@ export default function EditPostForm({ postId }: EditPostFormProps) {
           setPost(fetchedPost);
           setTitle(fetchedPost.title);
           setContent(fetchedPost.content || "");
-          setInstitutionId(fetchedPost.institution_id);
+          setInstitutionId(fetchedPost.institution_id || undefined); //원래는 안되지만, 샘플 이슈
           setIsLoading(false);
         } else {
           setError(result.error?.message || "게시물 정보를 불러오는데 실패했습니다.");
@@ -84,7 +85,7 @@ export default function EditPostForm({ postId }: EditPostFormProps) {
   // 현재 사용자가 게시물 작성자인지 확인
   const isAuthor = user?.id === post?.user_id;
 
-  // 공지사항인지 확인 (is_notice 속성이 없으므로 대체 로직 사용)
+  // 공지사항인지 확인 (category 이름으로 확인)
   const isNotice = post?.category?.name === "공지사항";
 
   const handleSubmit = async (e: React.FormEvent) => {

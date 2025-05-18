@@ -77,3 +77,7 @@ class DashboardStats(BaseModel):
     newUserCount: int
     newPostCount: int
     newCommentCount: int
+
+class UsernameAvailability(BaseModel):
+    available: bool
+    message: Optional[str] = None

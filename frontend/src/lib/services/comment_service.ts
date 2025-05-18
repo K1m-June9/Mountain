@@ -6,32 +6,30 @@ import type {
   Comment, 
   CommentWithUser, 
   CommentWithReplies,
-  CommentCreateRequest, 
-  CommentUpdateRequest, 
-  CommentFilter 
+  CommentCreate, 
+  CommentUpdate, 
+  CommentFilter,
+  Reaction,
+  ReportCreate,
+  Report
 } from "../types/comment";
-import type { PaginatedData, PaginationParams, ID } from "../types/common";
+import type { ID } from "../types/common";
 
 /**
  * 댓글 관련 서비스 함수들을 제공하는 클래스
  */
 export class CommentService {
   /**
-   * 댓글 목록 조회
-   * @param filters 필터링 옵션
-   * @returns 페이지네이션된 댓글 목록
+   * 게시물의 댓글 목록 조회 (대댓글 포함)
+   * @param postId 게시물 ID
+   * @param params 페이지네이션 파라미터
+   * @returns 댓글 목록 (대댓글 포함)
    */
-  async getComments(filters?: CommentFilter): Promise<ApiResult<PaginatedData<CommentWithUser>>> {
-    return await api.get<PaginatedData<CommentWithUser>>("/comments", filters);
-  }
-
-  /**
-   * 특정 댓글 조회
-   * @param commentId 댓글 ID
-   * @returns 댓글 정보
-   */
-  async getComment(commentId: ID): Promise<ApiResult<CommentWithUser>> {
-    return await api.get<CommentWithUser>(`/comments/${commentId}`);
+  async getPostComments(
+    postId: ID,
+    params?: CommentFilter
+  ): Promise<ApiResult<CommentWithReplies[]>> {
+    return await api.get<CommentWithReplies[]>(`/comments/${postId}/comments`, params);
   }
 
   /**
@@ -39,157 +37,90 @@ export class CommentService {
    * @param commentData 댓글 생성 데이터
    * @returns 생성된 댓글 정보
    */
-  async createComment(commentData: CommentCreateRequest): Promise<ApiResult<Comment>> {
+  async createComment(commentData: CommentCreate): Promise<ApiResult<Comment>> {
     return await api.post<Comment>("/comments", commentData);
   }
 
   /**
-   * 댓글 업데이트
+   * 댓글 수정
    * @param commentId 댓글 ID
    * @param updateData 업데이트할 댓글 데이터
    * @returns 업데이트된 댓글 정보
    */
-  async updateComment(commentId: ID, updateData: CommentUpdateRequest): Promise<ApiResult<Comment>> {
+  async updateComment(commentId: ID, updateData: CommentUpdate): Promise<ApiResult<Comment>> {
     return await api.put<Comment>(`/comments/${commentId}`, updateData);
   }
 
   /**
    * 댓글 삭제
    * @param commentId 댓글 ID
-   * @returns 삭제 결과
+   * @returns 삭제된 댓글 정보
    */
-  async deleteComment(commentId: ID): Promise<ApiResult<{ success: boolean }>> {
-    return await api.delete<{ success: boolean }>(`/comments/${commentId}`);
+  async deleteComment(commentId: ID): Promise<ApiResult<Comment>> {
+    return await api.delete<Comment>(`/comments/${commentId}`);
   }
 
   /**
    * 댓글 좋아요
    * @param commentId 댓글 ID
-   * @returns 좋아요 결과
+   * @returns 좋아요 반응 정보
    */
-  async likeComment(commentId: ID): Promise<ApiResult<{ like_count: number }>> {
-    return await api.post<{ like_count: number }>(`/comments/${commentId}/like`);
-  }
-
-  /**
-   * 댓글 좋아요 취소
-   * @param commentId 댓글 ID
-   * @returns 좋아요 취소 결과
-   */
-  async unlikeComment(commentId: ID): Promise<ApiResult<{ like_count: number }>> {
-    return await api.delete<{ like_count: number }>(`/comments/${commentId}/like`);
+  async likeComment(commentId: ID): Promise<ApiResult<Reaction>> {
+    return await api.post<Reaction>(`/comments/${commentId}/like`);
   }
 
   /**
    * 댓글 싫어요
    * @param commentId 댓글 ID
-   * @returns 싫어요 결과
+   * @returns 싫어요 반응 정보
    */
-  async dislikeComment(commentId: ID): Promise<ApiResult<{ dislike_count: number }>> {
-    return await api.post<{ dislike_count: number }>(`/comments/${commentId}/dislike`);
+  async dislikeComment(commentId: ID): Promise<ApiResult<Reaction>> {
+    return await api.post<Reaction>(`/comments/${commentId}/dislike`);
   }
 
   /**
-   * 댓글 싫어요 취소
+   * 댓글 신고
    * @param commentId 댓글 ID
-   * @returns 싫어요 취소 결과
+   * @param reportData 신고 데이터
+   * @returns 신고 정보
    */
-  async undislikeComment(commentId: ID): Promise<ApiResult<{ dislike_count: number }>> {
-    return await api.delete<{ dislike_count: number }>(`/comments/${commentId}/dislike`);
+  async reportComment(commentId: ID, reportData: ReportCreate): Promise<ApiResult<Report>> {
+    return await api.post<Report>(`/comments/${commentId}/report`, reportData);
   }
 
   /**
-   * 댓글의 답글 목록 조회
+   * 특정 댓글의 답글 목록 조회
    * @param commentId 댓글 ID
    * @param params 페이지네이션 파라미터
-   * @returns 페이지네이션된 답글 목록
+   * @returns 답글 목록
    */
   async getCommentReplies(
     commentId: ID,
-    params?: PaginationParams
-  ): Promise<ApiResult<PaginatedData<CommentWithUser>>> {
-    return await api.get<PaginatedData<CommentWithUser>>(`/comments/${commentId}/replies`, params);
+    params?: CommentFilter
+  ): Promise<ApiResult<CommentWithUser[]>> {
+    return await api.get<CommentWithUser[]>(`/comments/${commentId}/replies`, params);
   }
 
   /**
-   * 게시물의 댓글 목록 조회
-   * @param postId 게시물 ID
-   * @param params 페이지네이션 파라미터
-   * @returns 페이지네이션된 댓글 목록
+   * 사용자 반응 상태 확인 (좋아요/싫어요 여부)
+   * 
+   * 참고: 이 기능은 백엔드에 직접적인 엔드포인트가 없으므로,
+   * 프론트엔드에서 댓글 데이터를 처리할 때 사용자 반응 상태를 계산하는 유틸리티 함수입니다.
+   * 
+   * @param comments 댓글 목록
+   * @param userId 현재 사용자 ID
+   * @returns 사용자 반응 상태가 추가된 댓글 목록
    */
-  async getCommentsByPostId(
-    postId: ID,
-    params?: PaginationParams
-  ): Promise<ApiResult<PaginatedData<CommentWithReplies>>> {
-    return await api.get<PaginatedData<CommentWithReplies>>(`/posts/${postId}/comments`, params);
-  }
-
-  /**
-   * 관리자용 모든 댓글 조회
-   * @param page 페이지 번호
-   * @param limit 페이지당 항목 수
-   * @param status 상태 필터
-   * @param search 검색어
-   * @returns 관리자용 댓글 목록
-   */
-  async getAllComments(
-    page: number = 1, 
-    limit: number = 10, 
-    status: string = "all", 
-    search: string = ""
-  ): Promise<ApiResult<{
-    comments: CommentWithUser[];
-    totalPages: number;
-    totalItems: number;
-  }>> {
-    const params = {
-      page,
-      limit,
-      ...(status && status !== "all" ? { status } : {}),
-      ...(search ? { search } : {})
-    };
-
-    return await api.get<{
-      comments: CommentWithUser[];
-      totalPages: number;
-      totalItems: number;
-    }>("/admin/comments", params);
-  }
-
-  /**
-   * 댓글 숨김 처리
-   * @param commentId 댓글 ID
-   * @returns 처리 결과
-   */
-  async hideComment(commentId: ID): Promise<ApiResult<{ success: boolean }>> {
-    return await api.put<{ success: boolean }>(`/admin/comments/${commentId}/hide`);
-  }
-
-  /**
-   * 댓글 숨김 해제
-   * @param commentId 댓글 ID
-   * @returns 처리 결과
-   */
-  async unhideComment(commentId: ID): Promise<ApiResult<{ success: boolean }>> {
-    return await api.put<{ success: boolean }>(`/admin/comments/${commentId}/unhide`);
-  }
-    /**
-   * 사용자가 작성한 댓글 목록 조회
-   * @param userId 사용자 ID
-   * @param page 페이지 번호
-   * @param limit 페이지당 항목 수
-   * @returns 페이지네이션된 댓글 목록
-   */
-  async getUserComments(
-    userId: ID,
-    page: number = 1,
-    limit: number = 10
-  ): Promise<ApiResult<PaginatedData<CommentWithUser & { post_title: string }>>> {
-    const skip = (page - 1) * limit;
-    return await api.get<PaginatedData<CommentWithUser & { post_title: string }>>(
-      `/users/${userId}/comments`,
-      { skip, limit }
-    );
+  processUserReactions<T extends CommentWithUser>(
+    comments: T[],
+    userId?: ID | null
+  ): T[] {
+    if (!userId) return comments;
+    
+    // 이 함수는 백엔드에서 제공하지 않는 기능이므로 프론트엔드에서 구현해야 합니다.
+    // 실제 구현은 백엔드에서 사용자의 반응 정보를 제공하는 방식에 따라 달라질 수 있습니다.
+    
+    return comments;
   }
 }
 

@@ -1,3 +1,4 @@
+// src/components/post-list.tsx
 "use client"
 
 import { useEffect, useState } from "react"
@@ -227,8 +228,8 @@ export default function PostList({ institutionId, showTags = false }: PostListPr
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center">
-                          <span>{post.user?.nickname || "익명"}</span>
-                          {post.user_id && <span className="text-gray-400 text-xs ml-1">({post.user_id})</span>}
+                          <span>{post.user?.username || "익명"}</span>
+                          {post.user.nickname && <span className="text-gray-400 text-xs ml-1">({post.user.nickname})</span>}
                         </div>
                       </TableCell>
                       <TableCell>{new Date(post.created_at).toLocaleDateString()}</TableCell>

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, CheckCircle2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2 } from "lucide-react"
 import { toast } from "sonner"
 import type { RegisterData } from "@/lib/types/auth"
 
@@ -19,7 +19,6 @@ export default function RegisterForm() {
   const router = useRouter()
   const { register, isAuthenticated, checkUsernameAvailability } = useAuth()
   const [username, setUsername] = useState("")
-  const [nickname, setNickname] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -28,11 +27,12 @@ export default function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [isCheckingUsername, setIsCheckingUsername] = useState(false)
 
-  // 이미 로그인한 경우 홈으로 리다이렉트
-  if (isAuthenticated) {
-    router.push("/")
-    return null
-  }
+  // useEffect를 사용하여 인증 상태 확인 및 리다이렉트
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push("/")
+    }
+  }, [isAuthenticated, router])
 
   // 아이디 중복 확인
   const handleCheckUsername = async () => {
@@ -74,11 +74,6 @@ export default function RegisterForm() {
       return
     }
 
-    if (!nickname.trim()) {
-      setError("닉네임을 입력해주세요.")
-      return
-    }
-
     if (!email.trim()) {
       setError("이메일을 입력해주세요.")
       return
@@ -110,9 +105,8 @@ export default function RegisterForm() {
       // RegisterData 타입에 맞게 데이터 구성
       const registerData: RegisterData = {
         username,
-        nickname,
         email,
-        password
+        password,
       }
 
       const result = await register(registerData)
@@ -175,7 +169,7 @@ export default function RegisterForm() {
             )}
             <p className="text-xs text-gray-500">영문, 숫자만 사용 가능하며 4~20자 사이여야 합니다.</p>
           </div>
-          <div className="space-y-2">
+          {/* <div className="space-y-2">
             <Label htmlFor="nickname">닉네임 *</Label>
             <Input
               id="nickname"
@@ -183,7 +177,7 @@ export default function RegisterForm() {
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
             />
-          </div>
+          </div> */}
           <div className="space-y-2">
             <Label htmlFor="email">이메일 *</Label>
             <Input

@@ -1,3 +1,4 @@
+// src/components/search-results.tsx
 "use client"
 
 import { useState, useEffect } from "react"
@@ -8,7 +9,6 @@ import Pagination from "@/components/pagination"
 import { AlertTriangle, Search } from 'lucide-react'
 import postService from "@/lib/services/post_service"
 import type { PostWithDetails } from "@/lib/types/post"
-import type { PaginatedData } from "@/lib/types/common"
 
 interface SearchResultsProps {
   query: string
@@ -40,6 +40,9 @@ export default function SearchResults({
         const params: Record<string, any> = {
           page: currentPage,
           limit: postsPerPage,
+        }
+        if (institution && institution !== "all") {
+          params.institution_id = institution;
         }
 
         if (sortBy) {

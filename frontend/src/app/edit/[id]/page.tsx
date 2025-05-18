@@ -7,8 +7,11 @@ import Footer from "@/components/footer"
 import postService from "@/lib/services/post_service"
 
 export default async function EditPostPage({ params }: { params: { id: string } }) {
+  // params를 먼저 await 처리
+  const resolvedParams = await params;
+  
   // ID 타입 변환
-  const postId = Number(params.id)
+  const postId = Number(resolvedParams.id)
   
   // 리팩토링된 postService 사용
   const postResult = await postService.getPostById(postId)

@@ -2,7 +2,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react" // useEffect 추가
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
@@ -25,15 +25,20 @@ export default function LoginForm() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  // 이미 로그인한 경우 적절한 페이지로 리다이렉트
-  if (isAuthenticated) {
-    // user.role을 확인하여 관리자인지 확인
-    if (user?.role === "admin") {
-      router.push("/admin")
-    } else {
-      router.push("/")
+  // 리다이렉션 로직을 useEffect로 이동
+  useEffect(() => {
+    if (isAuthenticated) {
+      if (user?.role === "admin") {
+        router.push("/admin")
+      } else {
+        router.push("/")
+      }
     }
-    return null
+  }, [isAuthenticated, user, router]);
+
+  // 렌더링 부분에서는 조건부 렌더링만 수행
+  if (isAuthenticated) {
+    return null; // 또는 로딩 인디케이터
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -68,12 +73,7 @@ export default function LoginForm() {
       
       if (result.success) {
         toast.success("로그인에 성공했습니다.")
-        // 관리자인 경우 관리자 페이지로, 일반 사용자인 경우 홈으로 리다이렉트
-        if (result.user?.role === "admin") {
-          router.push("/admin")
-        } else {
-          router.push("/")
-        }
+        // 리다이렉션은 useEffect에서 처리되므로 여기서는 제거
       } else {
         setError(result.message || "로그인에 실패했습니다.")
         toast.error(result.message || "로그인에 실패했습니다.")

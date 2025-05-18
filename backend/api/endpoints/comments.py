@@ -1,3 +1,4 @@
+import json
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,13 +11,13 @@ from backend.api import deps
 router = APIRouter()
 
 
-@router.get("/post/{post_id}", response_model=List[schemas.CommentWithReplies])
+@router.get("/{post_id}/comments", response_model=List[schemas.CommentWithReplies])
 def read_comments_by_post(
     post_id: int,
     db: Session = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 50,
-    current_user: Optional[models.User] = Depends(deps.get_current_user),
+    current_user: Optional[models.User] = Depends(deps.get_optional_current_user),
 ) -> Any:
     """
     게시물의 댓글 목록 조회
@@ -78,25 +79,26 @@ def read_comments_by_post(
                 models.Reaction.type == "dislike"
             ).scalar()
             
-            # 답글 객체 생성
+            # 답글 객체 생성 - from_orm과 dict 대신 model_validate와 model_dump 사용
             reply_dict = {
-                **schemas.Comment.from_orm(reply).dict(),
-                "user": schemas.User.from_orm(reply.user),
+                **schemas.Comment.model_validate(reply).model_dump(),
+                "user": schemas.User.model_validate(reply.user),
                 "like_count": reply_like_count,
                 "dislike_count": reply_dislike_count
             }
             replies.append(schemas.CommentWithUser(**reply_dict))
         
-        # 댓글 객체 생성
+        # 댓글 객체 생성 - from_orm과 dict 대신 model_validate와 model_dump 사용
         comment_dict = {
-            **schemas.Comment.from_orm(comment).dict(),
-            "user": schemas.User.from_orm(comment.user),
+            **schemas.Comment.model_validate(comment).model_dump(),
+            "user": schemas.User.model_validate(comment.user),
             "like_count": like_count,
             "dislike_count": dislike_count,
             "replies": replies
         }
         result.append(schemas.CommentWithReplies(**comment_dict))
-    
+        #print(f"API Response for post {post_id} comments: {json.dumps([comment.dict() for comment in result], indent=2)}")#나중에 삭제
+
     return result
 
 
@@ -133,9 +135,9 @@ def create_comment(
         if parent_comment.post_id != comment_in.post_id:
             raise HTTPException(status_code=400, detail="Parent comment belongs to different post")
     
-    # 댓글 생성
+    # 댓글 생성 - dict() 대신 model_dump() 사용
     comment = models.Comment(
-        **comment_in.dict(),
+        **comment_in.model_dump(),
         user_id=current_user.id
     )
     db.add(comment)
@@ -402,3 +404,63 @@ def report_comment(
         db.commit()
     
     return report
+
+@router.get("/{comment_id}/replies", response_model=List[schemas.CommentWithUser])
+def read_comment_replies(
+    comment_id: int,
+    db: Session = Depends(deps.get_db),
+    skip: int = 0,
+    limit: int = 50,
+    current_user: Optional[models.User] = Depends(deps.get_optional_current_user),
+) -> Any:
+    """
+    특정 댓글의 답글 목록 조회
+    """
+    # 댓글 존재 확인
+    comment = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    
+    # 숨겨진 댓글의 답글은 관리자나 중재자만 볼 수 있음
+    if comment.is_hidden and (not current_user or (current_user.role != "admin" and current_user.role != "moderator")):
+        raise HTTPException(status_code=403, detail="Comment is hidden")
+    
+    # 답글 가져오기 (parent_id가 comment_id인 댓글)
+    query = db.query(models.Comment).filter(
+        models.Comment.parent_id == comment_id
+    )
+    
+    # 관리자나 중재자가 아니면 숨겨진 답글 제외
+    if not current_user or (current_user.role != "admin" and current_user.role != "moderator"):
+        query = query.filter(models.Comment.is_hidden == False)
+    
+    # 최신순 정렬
+    query = query.order_by(models.Comment.created_at.desc())
+    
+    # 페이지네이션
+    replies = query.offset(skip).limit(limit).all()
+    
+    # 결과 구성
+    result = []
+    for reply in replies:
+        # 좋아요/싫어요 수 계산
+        like_count = db.query(func.count(models.Reaction.id)).filter(
+            models.Reaction.comment_id == reply.id,
+            models.Reaction.type == "like"
+        ).scalar()
+        
+        dislike_count = db.query(func.count(models.Reaction.id)).filter(
+            models.Reaction.comment_id == reply.id,
+            models.Reaction.type == "dislike"
+        ).scalar()
+        
+        # 답글 객체 생성
+        reply_dict = {
+            **schemas.Comment.model_validate(reply).model_dump(),
+            "user": schemas.User.model_validate(reply.user),
+            "like_count": like_count,
+            "dislike_count": dislike_count
+        }
+        result.append(schemas.CommentWithUser(**reply_dict))
+    
+    return result

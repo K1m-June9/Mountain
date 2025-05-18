@@ -88,6 +88,7 @@ class ApiClient {
       const headers: HeadersInit = {
         "Content-Type": "application/json",
         ...(options?.headers || {})
+        
       };
 
       // 인증 토큰 추가
@@ -142,6 +143,12 @@ class ApiClient {
         console.log(`Status: ${response.status}`);
         console.log(`Duration: ${duration}ms`);
         console.groupEnd();
+        console.log('Sending request:', {
+          method,
+          url,
+          headers: requestOptions.headers,
+          body: data ? JSON.stringify(data) : undefined
+        });
       }
 
       // 401 에러 시 로그아웃 처리
@@ -214,11 +221,11 @@ class ApiClient {
   private buildUrl(endpoint: string, params?: Record<string, any>): string {
     // API_BASE_URL에 /api 경로를 추가하는 대신, URL 객체를 올바르게 생성
     const baseUrl = API_BASE_URL;
-    // const apiPath = `/api${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
-    // const url = new URL(apiPath, baseUrl);
-    // 끝에 슬래시(/) 추가
-    const apiPath = `/api${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}${endpoint.endsWith("/") ? "" : "/"}`;
+    const apiPath = `/api${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
     const url = new URL(apiPath, baseUrl);
+    // 끝에 슬래시(/) 추가
+    // const apiPath = `/api${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}${endpoint.endsWith("/") ? "" : "/"}`;
+    // const url = new URL(apiPath, baseUrl);
 
     if (params) {
       Object.entries(params).forEach(([key, value]) => {

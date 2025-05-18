@@ -104,3 +104,53 @@ def update_report(
     db.commit()
     
     return report
+
+@router.post("/", response_model=schemas.Report)
+def create_report(
+    *,
+    db: Session = Depends(deps.get_db),
+    report_in: schemas.ReportCreate,
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    신고 생성
+    """
+    # 신고 대상 확인 (게시물 또는 댓글)
+    if report_in.post_id:
+        # 게시물 존재 확인
+        post = db.query(models.Post).filter(models.Post.id == report_in.post_id).first()
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found")
+    elif report_in.comment_id:
+        # 댓글 존재 확인
+        comment = db.query(models.Comment).filter(models.Comment.id == report_in.comment_id).first()
+        if not comment:
+            raise HTTPException(status_code=404, detail="Comment not found")
+    else:
+        raise HTTPException(status_code=400, detail="Either post_id or comment_id must be provided")
+    
+    # 신고 객체 생성
+    report = models.Report(
+        reporter_id=current_user.id,
+        post_id=report_in.post_id,
+        comment_id=report_in.comment_id,
+        reason=report_in.reason,
+        description=report_in.description,
+        status="pending"
+    )
+    
+    db.add(report)
+    db.commit()
+    db.refresh(report)
+    
+    # 활동 로그 기록
+    activity_log = models.ActivityLog(
+        user_id=current_user.id,
+        action_type="create_report",
+        description=f"User {current_user.username} reported {'post' if report_in.post_id else 'comment'} {report_in.post_id or report_in.comment_id}",
+        ip_address="127.0.0.1"  # 실제 구현에서는 요청의 IP 주소를 가져와야 함
+    )
+    db.add(activity_log)
+    db.commit()
+    
+    return report

@@ -1,3 +1,4 @@
+// src/components/write-post-form.tsx
 "use client"
 
 import type React from "react"
@@ -15,6 +16,7 @@ import { useAuth } from "@/contexts/auth-context"
 import postService from "@/lib/services/post_service"
 import institutionService from "@/lib/services/institution_service"
 import type { Institution } from "@/lib/types/institution"
+import type { PostCreateRequest } from "@/lib/types/post"
 import { toast } from "sonner"
 
 export default function WritePostForm() {
@@ -75,11 +77,13 @@ export default function WritePostForm() {
 
     try {
       // 게시물 생성 API 호출
-      const response = await postService.createPost({
+      const postData: PostCreateRequest = {
         title,
         content,
         institution_id: parseInt(institutionId),
-      })
+      }
+
+      const response = await postService.createPost(postData)
 
       if (response.success) {
         toast.success("게시물이 작성되었습니다.")

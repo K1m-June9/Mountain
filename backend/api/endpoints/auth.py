@@ -134,3 +134,32 @@ def change_password(
     db.commit()
     
     return current_user
+
+@router.get("/check-username", response_model=schemas.UsernameAvailability)
+def check_username_availability(
+    username: str,
+    db: Session = Depends(deps.get_db)
+) -> Any:
+    """
+    사용자명 중복 확인
+    """
+    # 사용자명 유효성 검사 (선택적)
+    if len(username) < 3:
+        return {
+            "available": False,
+            "message": "사용자명은 최소 3자 이상이어야 합니다."
+        }
+    
+    # 데이터베이스에서 사용자명 중복 확인
+    user = db.query(models.User).filter(models.User.username == username).first()
+    
+    if user:
+        return {
+            "available": False,
+            "message": "이미 사용 중인 사용자명입니다."
+        }
+    
+    return {
+        "available": True,
+        "message": "사용 가능한 사용자명입니다."
+    }
