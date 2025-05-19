@@ -78,15 +78,16 @@ export class CommentService {
     return await api.post<Reaction>(`/comments/${commentId}/dislike`);
   }
 
-  /**
-   * 댓글 신고
-   * @param commentId 댓글 ID
-   * @param reportData 신고 데이터
-   * @returns 신고 정보
-   */
-  async reportComment(commentId: ID, reportData: ReportCreate): Promise<ApiResult<Report>> {
-    return await api.post<Report>(`/comments/${commentId}/report`, reportData);
-  }
+  //report_service로 통합
+  // /**
+  //  * 댓글 신고
+  //  * @param commentId 댓글 ID
+  //  * @param reportData 신고 데이터
+  //  * @returns 신고 정보
+  //  */
+  // async reportComment(commentId: ID, reportData: ReportCreate): Promise<ApiResult<Report>> {
+  //   return await api.post<Report>(`/comments/${commentId}/report`, reportData);
+  // }
 
   /**
    * 특정 댓글의 답글 목록 조회

@@ -1,6 +1,6 @@
-// src/lib/types/activity-log.ts
+// src/lib/types/admin/activity_log.ts
 
-import { ID, Timestamps, BaseFilter } from './common';
+import { ID, Timestamps, BaseFilter } from '../common';
 
 /**
  * 활동 로그 관련 타입 정의

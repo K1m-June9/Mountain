@@ -1,5 +1,8 @@
 // src/lib/types/admin.ts
-
+//==========================================================================
+//마무리되면 파일 삭제 예정
+//lib/types/admin/으로 분리 이동
+//==========================================================================
 import { ID, Timestamps, BaseFilter, ReportStatus, Role } from './common';
 import { User } from './user';
 import { Post } from './post';
