@@ -176,9 +176,15 @@ export class PostService {
    * @param file 업로드할 이미지 파일
    * @returns 업로드된 이미지 정보
    */
-  async uploadImage(file: File): Promise<ApiResult<PostImage>> {
+  //함수 수정
+  async uploadImage(file: File, post_id?: ID): Promise<ApiResult<PostImage>> {
     const formData = new FormData();
     formData.append('file', file);
+    
+    // post_id가 있으면 추가
+    if (post_id) {
+      formData.append('post_id', post_id.toString());
+    }
     
     return await api.post<PostImage>("/posts/upload-image", formData, {
       headers: {

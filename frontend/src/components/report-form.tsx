@@ -16,12 +16,22 @@ import type { ID } from "@/lib/types/common"
 import { toast } from "sonner"
 
 interface ReportFormProps {
-  postId: ID
-  postTitle: string
+  targetId: ID
+  targetType: "post" | "comment"
+  targetTitle: string
+  targetContent?: string
+  targetAuthor?: string
   onClose: () => void
 }
 
-export default function ReportForm({ postId, postTitle, onClose }: ReportFormProps) {
+export default function ReportForm({ 
+  targetId, 
+  targetType, 
+  targetTitle, 
+  targetContent, 
+  targetAuthor,
+  onClose 
+}: ReportFormProps) {
   const [reason, setReason] = useState<string>("")
   const [description, setDescription] = useState<string>("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -54,7 +64,10 @@ export default function ReportForm({ postId, postTitle, onClose }: ReportFormPro
     }
 
     try {
-      const response = await reportService.reportPost(postId, reportData)
+      // 대상 타입에 따라 적절한 서비스 함수 호출
+      const response = targetType === "post"
+        ? await reportService.reportPost(targetId, reportData)
+        : await reportService.reportComment(targetId, reportData);
       
       if (response.success) {
         setSuccess(true)
@@ -78,11 +91,17 @@ export default function ReportForm({ postId, postTitle, onClose }: ReportFormPro
     }
   }
 
+  // 대상 타입에 따라 타이틀 설정
+  const formTitle = targetType === "post" ? "게시물 신고" : "댓글 신고";
+  const formDescription = targetType === "post" 
+    ? "이 게시물이 커뮤니티 가이드라인을 위반한다고 생각하시면 신고해주세요."
+    : "이 댓글이 커뮤니티 가이드라인을 위반한다고 생각하시면 신고해주세요.";
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>게시물 신고</CardTitle>
-        <CardDescription>이 게시물이 커뮤니티 가이드라인을 위반한다고 생각하시면 신고해주세요.</CardDescription>
+        <CardTitle>{formTitle}</CardTitle>
+        <CardDescription>{formDescription}</CardDescription>
       </CardHeader>
       <CardContent>
         {error && (
@@ -100,9 +119,21 @@ export default function ReportForm({ postId, postTitle, onClose }: ReportFormPro
         ) : (
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
-              <h3 className="text-sm font-medium mb-2">신고 대상 게시물</h3>
+              <h3 className="text-sm font-medium mb-2">신고 대상 {targetType === "post" ? "게시물" : "댓글"}</h3>
               <div className="p-3 bg-muted rounded-md">
-                <p className="font-medium">{postTitle}</p>
+                {targetAuthor && (
+                  <p className="font-medium text-sm mb-1">{targetAuthor}</p>
+                )}
+                {targetType === "post" ? (
+                  <p className="font-medium">{targetTitle}</p>
+                ) : (
+                  <>
+                    <p className="font-medium">{targetTitle}</p>
+                    {targetContent && (
+                      <p className="text-sm mt-1 line-clamp-3">{targetContent}</p>
+                    )}
+                  </>
+                )}
               </div>
             </div>
 

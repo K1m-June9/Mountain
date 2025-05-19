@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, ArrowLeft, AlertTriangle } from 'lucide-react'
 import ReportForm from "@/components/report-form"
-import CommentReportForm from "@/components/comment-report-form"
+//import CommentReportForm from "@/components/comment-report-form"
 
 // 새로 분리한 컴포넌트 임포트
 import PostHeader from "@/components/post-header"
@@ -690,7 +690,12 @@ export default function PostDetail({ postId }: PostDetailProps) {
       {/* 게시물 신고 폼 */}
       {showReportForm && (
         <div className="mt-6">
-          <ReportForm postId={post.id} postTitle={post.title} onClose={() => setShowReportForm(false)} />
+          <ReportForm
+          targetId={post.id}
+          targetType="post"
+          targetTitle={post.title}
+          onClose={() => setShowReportForm(false)}
+          />
         </div>
       )}
 
@@ -703,11 +708,12 @@ export default function PostDetail({ postId }: PostDetailProps) {
         {/* 댓글 신고 폼 */}
         {reportingComment && reportingCommentId && (
           <div className="mb-6">
-            <CommentReportForm
-              commentId={Number(reportingCommentId)}
-              postId={post.id}
-              commentAuthor={reportingComment.user?.username || "익명"}
-              commentContent={reportingComment.content}
+            <ReportForm
+              targetId={Number(reportingCommentId)}
+              targetType="comment"
+              targetTitle={`댓글 신고`}
+              targetContent={reportingComment.content}
+              targetAuthor={reportingComment.user?.username || "익명"}
               onClose={handleCloseCommentReport}
             />
           </div>

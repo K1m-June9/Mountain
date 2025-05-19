@@ -3,7 +3,7 @@ import uuid
 import os
 
 from typing import Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 
@@ -517,6 +517,7 @@ def upload_post_image(
     *,
     db: Session = Depends(deps.get_db),
     file: UploadFile = File(...),
+    post_id: Optional[int] = Form(None),  # Form 파라미터로 post_id 추가
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
@@ -547,8 +548,18 @@ def upload_post_image(
                 detail=f"파일 크기가 너무 큽니다. 최대 크기: 5MB"
             )
     
+    # post_id가 제공된 경우 게시물 존재 여부 확인
+    if post_id:
+        post = db.query(models.Post).filter(models.Post.id == post_id).first()
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found")
+        
+        # 권한 확인: 작성자 또는 관리자만 이미지 추가 가능
+        if post.user_id != current_user.id and current_user.role != "admin":
+            raise HTTPException(status_code=403, detail="Not enough permissions")
+    
     # 파일명 생성 (고유한 이름으로 변경)
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     unique_filename = f"{timestamp}_{uuid.uuid4().hex}.{file_extension}"
     
     # 파일 저장 경로
@@ -563,10 +574,10 @@ def upload_post_image(
     # 이미지 URL 생성
     image_url = f"/uploads/posts/{unique_filename}"
     
-    # 이미지 정보 저장 (post_id는 나중에 연결)
+    # 이미지 정보 저장 (post_id 연결)
     post_image = models.PostImage(
         image_url=image_url,
-        post_id=None  # 임시로 None 설정, 게시물 생성/수정 시 연결
+        post_id=post_id  # post_id 설정
     )
     db.add(post_image)
     db.commit()
