@@ -584,3 +584,82 @@ def upload_post_image(
     db.refresh(post_image)
     
     return post_image
+
+@router.get("/liked-by/{user_id}", response_model=List[schemas.PostWithDetails])
+def read_liked_posts_by_user(
+    *,
+    db: Session = Depends(deps.get_db),
+    user_id: int,
+    skip: int = 0,
+    limit: int = 50,
+    current_user: Optional[models.User] = Depends(deps.get_optional_current_user),
+) -> Any:
+    """
+    특정 사용자가 좋아요한 게시물 목록 조회
+    """
+    # 사용자 존재 확인
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # 사용자가 좋아요한 게시물 ID 목록 조회
+    liked_post_ids = db.query(models.Reaction.post_id).filter(
+        models.Reaction.user_id == user_id,
+        models.Reaction.type == "like",
+        models.Reaction.post_id.isnot(None)  # post_id가 NULL이 아닌 경우만
+    ).all()
+    
+    # ID 목록 추출
+    liked_post_ids = [post_id for (post_id,) in liked_post_ids]
+    
+    # 좋아요한 게시물이 없는 경우 빈 목록 반환
+    if not liked_post_ids:
+        return []
+    
+    # 좋아요한 게시물 조회
+    query = db.query(models.Post).filter(models.Post.id.in_(liked_post_ids))
+    
+    # 관리자나 중재자가 아니면 숨겨진 게시물 제외
+    if not current_user or (current_user.role != "admin" and current_user.role != "moderator"):
+        query = query.filter(models.Post.is_hidden == False)
+    
+    # 최신순 정렬
+    query = query.order_by(models.Post.created_at.desc())
+    
+    # 페이지네이션
+    posts = query.offset(skip).limit(limit).all()
+    
+    # 추가 정보 포함 (기존 read_posts 함수와 동일한 로직)
+    result = []
+    for post in posts:
+        # 댓글 수 계산
+        comment_count = db.query(func.count(models.Comment.id)).filter(
+            models.Comment.post_id == post.id,
+            models.Comment.is_hidden == False
+        ).scalar()
+        
+        # 좋아요/싫어요 수 계산
+        like_count = db.query(func.count(models.Reaction.id)).filter(
+            models.Reaction.post_id == post.id,
+            models.Reaction.type == "like"
+        ).scalar()
+        
+        dislike_count = db.query(func.count(models.Reaction.id)).filter(
+            models.Reaction.post_id == post.id,
+            models.Reaction.type == "dislike"
+        ).scalar()
+        
+        # PostWithDetails 객체 생성
+        post_dict = {
+            **schemas.Post.model_validate(post).model_dump(),
+            "user": schemas.User.model_validate(post.user),
+            "institution": schemas.Institution.model_validate(post.institution) if post.institution else None,
+            "category": schemas.Category.model_validate(post.category) if post.category else None,
+            "images": [schemas.PostImage.model_validate(image) for image in post.images],
+            "comment_count": comment_count,
+            "like_count": like_count,
+            "dislike_count": dislike_count
+        }
+        result.append(schemas.PostWithDetails(**post_dict))
+    
+    return result

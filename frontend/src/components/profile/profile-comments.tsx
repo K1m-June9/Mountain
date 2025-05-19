@@ -27,33 +27,39 @@ export default function ProfileComments({ userId }: ProfileCommentsProps) {
 
   useEffect(() => {
     const fetchComments = async () => {
-      setIsLoading(true)
+      setIsLoading(true);
       try {
-        const result = await commentService.getUserComments(userId, page)
+        const result = await commentService.getUserComments(userId, page);
         
         if (!result.success || !result.data) {
-          console.error("Failed to fetch comments:", result.error ? getErrorMessage(result.error) : "Unknown error")
-          setHasMore(false)
-          setIsLoading(false)
-          return
+          console.error("Failed to fetch comments:", result.error ? getErrorMessage(result.error) : "Unknown error");
+          setHasMore(false);
+          setIsLoading(false);
+          return;
         }
         
-        const fetchedComments = result.data.items
+        const fetchedComments = result.data.items;
+        
+        // 백엔드에서 post_title을 제공하지 않으므로 임시로 설정
+        const commentsWithPostTitle = fetchedComments.map(comment => ({
+          ...comment,
+          post_title: `게시물 #${comment.post_id}` // 임시 제목
+        }));
         
         if (fetchedComments.length === 0) {
-          setHasMore(false)
+          setHasMore(false);
         } else {
-          setComments((prev) => (page === 1 ? fetchedComments : [...prev, ...fetchedComments]))
+          setComments((prev) => (page === 1 ? commentsWithPostTitle : [...prev, ...commentsWithPostTitle]));
         }
       } catch (error) {
-        console.error("Failed to fetch comments:", error)
+        console.error("Failed to fetch comments:", error);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchComments()
-  }, [userId, page])
+    fetchComments();
+  }, [userId, page]);
 
   const loadMore = () => {
     setPage((prev) => prev + 1)

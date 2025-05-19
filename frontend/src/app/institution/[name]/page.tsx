@@ -31,7 +31,8 @@ export default async function InstitutionPage({
   params: { name: string }
   searchParams?: { page?: string }
 }) {
-  const institutionId = params.name
+  const resolvedParams = await params;
+  const institutionId = resolvedParams.name;
   
   // 기관 정보 가져오기
   const institution = await getInstitutionById(institutionId)

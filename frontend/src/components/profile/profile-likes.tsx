@@ -3,12 +3,14 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Post, PostWithDetails } from "@/lib/types/post"
+import type { Institution } from "@/lib/types/institution"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, ThumbsUp } from 'lucide-react'
 import Link from "next/link"
 import { formatDate } from "@/lib/utils/date"
 import postService from "@/lib/services/post_service"
+import institutionService from "@/lib/services/institution_service"
 import { getErrorMessage } from "@/lib/api/utils"
 import type { ID, PaginationParams } from "@/lib/types/common"
 
@@ -18,12 +20,36 @@ interface ProfileLikesProps {
 
 export default function ProfileLikes({ userId }: ProfileLikesProps) {
   const [likedPosts, setLikedPosts] = useState<Post[]>([])
+  const [institutions, setInstitutions] = useState<Institution[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingInstitutions, setIsLoadingInstitutions] = useState(true)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const pageSize = 10 // 한 페이지에 표시할 게시물 수
 
+  // 기관 정보 가져오기
+  useEffect(() => {
+    const fetchInstitutions = async () => {
+      setIsLoadingInstitutions(true);
+      try {
+        const result = await institutionService.getInstitutions();
+        if (result.success && result.data) {
+          setInstitutions(result.data.items);
+        } else {
+          console.error("Failed to fetch institutions:", result.error);
+        }
+      } catch (error) {
+        console.error("Error fetching institutions:", error);
+      } finally {
+        setIsLoadingInstitutions(false);
+      }
+    };
+
+    fetchInstitutions();
+  }, []);
+
+  // 좋아요한 게시물 가져오기
   useEffect(() => {
     const fetchLikedPosts = async () => {
       setIsLoading(true)
@@ -78,10 +104,20 @@ export default function ProfileLikes({ userId }: ProfileLikesProps) {
   };
 
   // 기관 이름을 가져오는 함수 (institution_id를 기반으로)
-  const getInstitutionName = (institutionId?: ID): string => {
-    // 실제 구현에서는 기관 ID를 기관 이름으로 매핑하는 로직이 필요합니다.
-    // 여기서는 간단히 ID를 문자열로 반환합니다.
-    return institutionId ? `기관 ${institutionId}` : '기관 없음';
+  const getInstitutionName = (institutionId?: ID | null): string => {
+    if (!institutionId) return '기관 없음';
+    
+    // 기관 ID로 기관 정보 찾기
+    const institution = institutions.find(inst => inst.id === institutionId);
+    return institution ? institution.name : `기관 ${institutionId}`;
+  };
+
+  // 기관 색상을 가져오는 함수
+  const getInstitutionColor = (institutionId?: ID | null): string => {
+    if (!institutionId) return "bg-gray-100 text-gray-800";
+    
+    const institutionName = getInstitutionName(institutionId);
+    return INSTITUTION_COLORS[institutionName] || "bg-gray-100 text-gray-800";
   };
 
   return (
@@ -111,7 +147,7 @@ export default function ProfileLikes({ userId }: ProfileLikesProps) {
                       </Link>
                       <div className="flex items-center gap-2 mt-1">
                         <Badge 
-                          className={INSTITUTION_COLORS[getInstitutionName(post.institution_id)] || "bg-gray-100 text-gray-800"} 
+                          className={getInstitutionColor(post.institution_id)} 
                           variant="outline"
                         >
                           {getInstitutionName(post.institution_id)}
@@ -125,9 +161,13 @@ export default function ProfileLikes({ userId }: ProfileLikesProps) {
                   </div>
                   <div className="text-sm text-muted-foreground">
                     <span className="mr-2">조회 {post.view_count}</span>
-                    {/* like_count와 comment_count는 Post 타입에 없음, 필요하다면 별도로 가져와야 함 */}
-                    <span className="mr-2">추천 {/* post.like_count */}</span>
-                    <span>댓글 {/* post.comment_count */}</span>
+                    {/* PostWithDetails 타입에는 like_count와 comment_count가 있지만 Post 타입에는 없음 */}
+                    {post.hasOwnProperty('like_count') && (
+                      <span className="mr-2">추천 {(post as any).like_count}</span>
+                    )}
+                    {post.hasOwnProperty('comment_count') && (
+                      <span>댓글 {(post as any).comment_count}</span>
+                    )}
                   </div>
                 </div>
               </div>

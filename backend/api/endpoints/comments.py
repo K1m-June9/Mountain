@@ -464,3 +464,57 @@ def read_comment_replies(
         result.append(schemas.CommentWithUser(**reply_dict))
     
     return result
+
+@router.get("/user/{user_id}", response_model=List[schemas.CommentWithUser])
+def read_comments_by_user(
+    user_id: int,
+    db: Session = Depends(deps.get_db),
+    skip: int = 0,
+    limit: int = 20,
+    current_user: Optional[models.User] = Depends(deps.get_optional_current_user),
+) -> Any:
+    """
+    사용자가 작성한 댓글 목록 조회
+    """
+    # 사용자 존재 확인
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # 사용자의 댓글 조회
+    query = db.query(models.Comment).filter(models.Comment.user_id == user_id)
+    
+    # 관리자나 중재자가 아니고, 자신의 댓글이 아니면 숨겨진 댓글 제외
+    if not current_user or (current_user.id != user_id and current_user.role not in ["admin", "moderator"]):
+        query = query.filter(models.Comment.is_hidden == False)
+    
+    # 최신순 정렬
+    query = query.order_by(models.Comment.created_at.desc())
+    
+    # 페이지네이션
+    comments = query.offset(skip).limit(limit).all()
+    
+    # 결과 구성
+    result = []
+    for comment in comments:
+        # 좋아요/싫어요 수 계산
+        like_count = db.query(func.count(models.Reaction.id)).filter(
+            models.Reaction.comment_id == comment.id,
+            models.Reaction.type == "like"
+        ).scalar()
+        
+        dislike_count = db.query(func.count(models.Reaction.id)).filter(
+            models.Reaction.comment_id == comment.id,
+            models.Reaction.type == "dislike"
+        ).scalar()
+        
+        # 댓글 객체 생성
+        comment_dict = {
+            **schemas.Comment.model_validate(comment).model_dump(),
+            "user": schemas.User.model_validate(comment.user),
+            "like_count": like_count,
+            "dislike_count": dislike_count
+        }
+        result.append(schemas.CommentWithUser(**comment_dict))
+    
+    return result

@@ -122,6 +122,38 @@ export class CommentService {
     
     return comments;
   }
+  /**
+   * 사용자가 작성한 댓글 목록 조회
+   * @param userId 사용자 ID
+   * @param page 페이지 번호
+   * @param limit 페이지당 항목 수
+   * @returns 사용자가 작성한 댓글 목록
+   */
+  async getUserComments(
+    userId: ID,
+    page: number = 1,
+    limit: number = 20
+  ): Promise<ApiResult<{ items: CommentWithUser[], total: number }>> {
+    const skip = (page - 1) * limit;
+    const result = await api.get<CommentWithUser[]>(`/comments/user/${userId}`, { skip, limit });
+    
+    if (result.success && result.data) {
+      // 백엔드에서 받은 배열 데이터를 프론트엔드에서 기대하는 형식으로 변환
+      return {
+        success: true,
+        data: {
+          items: result.data,
+          total: result.data.length // 백엔드에서 total count를 제공하지 않으므로 임시로 설정
+        }
+      };
+    }
+    
+    // 에러 케이스
+    return {
+      success: false,
+      error: result.error
+    };
+  }
 }
 
 // 싱글톤 인스턴스 생성

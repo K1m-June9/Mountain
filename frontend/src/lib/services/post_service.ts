@@ -11,7 +11,7 @@ import type {
   PostImage,
   PostReportRequest
 } from "../types/post";
-import { ID, PaginatedData } from "../types/common";
+import { ID, PaginatedData, PaginationParams } from "../types/common";
 
 /**
  * 게시물 관련 서비스 함수들을 제공하는 클래스
@@ -200,6 +200,42 @@ export class PostService {
    */
   async reportPost(reportData: PostReportRequest): Promise<ApiResult<{ success: boolean }>> {
     return await api.post<{ success: boolean }>("/reports", reportData);
+  }
+
+  /**
+   * 특정 사용자가 좋아요한 게시물 목록을 조회합니다.
+   * @param userId 사용자 ID
+   * @param params 페이지네이션 파라미터
+   * @returns 좋아요한 게시물 목록
+   */
+  async getLikedPostsByUser(userId: ID, params: PaginationParams = {}): Promise<ApiResult<PaginatedData<PostWithDetails>>> {
+    const { skip, limit = 50 } = params;
+    
+    const queryParams: Record<string, any> = {
+      skip,
+      limit
+    };
+    
+    const result = await api.get<PostWithDetails[]>(`/posts/liked-by/${userId}`, queryParams);
+    
+    // 백엔드 응답을 PaginatedData 형식으로 변환
+    if (result.success && Array.isArray(result.data)) {
+      // 페이지 계산 (skip과 limit으로부터)
+      const page = skip !== undefined ? Math.floor(skip / limit) + 1 : 1;
+      
+      return {
+        success: true,
+        data: {
+          items: result.data,
+          total: result.data.length, // 백엔드가 total을 제공하지 않으면 배열 길이 사용
+          page: page,
+          limit: limit
+        },
+        meta: result.meta
+      };
+    }
+    
+    return result as any;
   }
 }
 
