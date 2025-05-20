@@ -26,7 +26,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, CheckCircle2 } from 'lucide-react'
 import type { Notice, NoticeWithUser, NoticeCreateRequest, NoticeUpdateRequest } from "@/lib/types/notice"
 import type { ID } from "@/lib/types/common"
-
+import { useToast } from "@/hooks/use-sonner";
 // 공지사항 표시용 인터페이스
 interface NoticeDisplay {
   id: ID;
@@ -60,6 +60,7 @@ export default function NoticesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const { toast } = useToast();
 
   // 공지사항 목록 가져오기
   useEffect(() => {
@@ -281,7 +282,7 @@ export default function NoticesPage() {
     }
   }
 
-  // 공지사항 표시/숨김 토글
+  // 공지사항 표시/숨김 토글 함수 수정
   const handleToggleVisibility = async (notice: NoticeDisplay) => {
     try {
       // 현재 상태의 반대로 업데이트
@@ -292,6 +293,14 @@ export default function NoticesPage() {
           setNotices(notices.map(n => 
             n.id === notice.id ? { ...n, isHidden: false } : n
           ))
+          
+          // 운세 메시지 토스트 표시
+          if ('message' in result.data) {
+            toast.info("🔮 오늘의 운세", {
+              description: result.data.message,
+              duration: 5000
+            });
+          }
         }
       } else {
         // 숨김 처리
@@ -300,10 +309,19 @@ export default function NoticesPage() {
           setNotices(notices.map(n => 
             n.id === notice.id ? { ...n, isHidden: true } : n
           ))
+          
+          // 명언 토스트 표시
+          if ('message' in result.data) {
+            toast.success("✨ 오늘의 명언", {
+              description: result.data.message,
+              duration: 5000
+            });
+          }
         }
       }
     } catch (err) {
       console.error("공지사항 상태 변경 중 오류:", err)
+      toast.error("공지사항 상태 변경 중 오류가 발생했습니다.");
     }
   }
 

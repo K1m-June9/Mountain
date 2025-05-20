@@ -17,13 +17,13 @@ def read_users(
     db: Session = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 100,
-    current_user: models.User = Depends(deps.get_current_active_user),
+    current_user: models.User = Depends(deps.get_optional_current_user),
 ) -> Any:
     """
     사용자 목록 조회
     """
-    if current_user.role != "admin" and current_user.role != "moderator":
-        raise HTTPException(status_code=403, detail="Not enough permissions")
+    # if current_user.role != "admin" and current_user.role != "moderator":
+    #     raise HTTPException(status_code=403, detail="Not enough permissions")
     
     users = db.query(models.User).offset(skip).limit(limit).all()
     return users
@@ -31,7 +31,7 @@ def read_users(
 
 @router.get("/me", response_model=schemas.User)
 def read_user_me(
-    current_user: models.User = Depends(deps.get_current_active_user),
+    current_user: models.User = Depends(deps.get_optional_current_user),
 ) -> Any:
     """
     현재 사용자 정보 조회
@@ -43,7 +43,7 @@ def read_user_me(
 def read_user(
     user_id: int,
     db: Session = Depends(deps.get_db),
-    current_user: models.User = Depends(deps.get_current_active_user),
+    current_user: models.User = Depends(deps.get_optional_current_user),
 ) -> Any:
     """
     특정 사용자 정보 조회
@@ -59,7 +59,7 @@ def update_user_me(
     *,
     db: Session = Depends(deps.get_db),
     user_in: schemas.UserUpdate,
-    current_user: models.User = Depends(deps.get_current_active_user),
+    current_user: models.User = Depends(deps.get_optional_current_user),
 ) -> Any:
     """
     현재 사용자 정보 업데이트

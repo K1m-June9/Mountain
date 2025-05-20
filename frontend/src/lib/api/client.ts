@@ -6,12 +6,10 @@ import {
   RequestOptions, 
   AuthResponse 
 } from './types';
+import { STORAGE_KEYS, getLocalStorage, setLocalStorage, removeLocalStorage } from "../utils/storage";
 
 // API 기본 URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-// 로컬 스토리지 키
-const ACCESS_TOKEN_KEY = "access_token";
 
 /**
  * API 클라이언트 클래스
@@ -243,18 +241,7 @@ class ApiClient {
    */
   getAccessToken(): string | null {
     if (typeof window === "undefined") return null;
-    
-    try {
-      const tokenData = localStorage.getItem(ACCESS_TOKEN_KEY);
-      if (!tokenData) return null;
-      
-      // JSON 파싱 시도
-      const parsedToken = JSON.parse(tokenData);
-      return parsedToken;
-    } catch (e) {
-      // 파싱 실패 시 원래 값 반환 (이전 버전과의 호환성을 위해)
-      return localStorage.getItem(ACCESS_TOKEN_KEY);
-    }
+    return getLocalStorage(STORAGE_KEYS.ACCESS_TOKEN);
   }
 
   /**
@@ -262,7 +249,7 @@ class ApiClient {
    */
   setToken(token: string): void {
     if (typeof window === "undefined") return;
-    localStorage.setItem(ACCESS_TOKEN_KEY, token);
+    setLocalStorage(STORAGE_KEYS.ACCESS_TOKEN, token);
   }
 
   /**
@@ -270,7 +257,7 @@ class ApiClient {
    */
   clearTokens(): void {
     if (typeof window === "undefined") return;
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    removeLocalStorage(STORAGE_KEYS.ACCESS_TOKEN);
   }
 
   /**

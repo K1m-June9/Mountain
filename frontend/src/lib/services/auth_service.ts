@@ -37,6 +37,9 @@ export class AuthService {
     if (response.success && response.data) {
       setLocalStorage(STORAGE_KEYS.ACCESS_TOKEN, response.data.access_token);
       setLocalStorage(STORAGE_KEYS.USER, response.data.user);
+      // 토큰이 제대로 저장되었는지 확인
+      console.log("Token saved:", getLocalStorage(STORAGE_KEYS.ACCESS_TOKEN));
+      console.log('User saved:', getLocalStorage(STORAGE_KEYS.USER));
     }
     
     return response;

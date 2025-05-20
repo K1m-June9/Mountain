@@ -23,10 +23,32 @@ def get_db() -> Generator:
         db.close()
 
 
+# def get_current_user(
+#     db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
+# ) -> models.User:
+#     try:
+#         payload = jwt.decode(
+#             token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
+#         )
+#         token_data = schemas.TokenPayload(**payload)
+#     except (jwt.JWTError, ValidationError):
+#         raise HTTPException(
+#             status_code=status.HTTP_403_FORBIDDEN,
+#             detail="Could not validate credentials",
+#         )
+#     user = db.query(models.User).filter(models.User.id == token_data.sub).first()
+#     if not user:
+#         raise HTTPException(status_code=404, detail="User not found")
+#     return user
+# deps.py 파일에서 get_current_user 함수 수정
 def get_current_user(
     db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
 ) -> models.User:
     try:
+        # 토큰에서 따옴표 제거 (이중 따옴표 문제 해결)
+        if token.startswith('"') and token.endswith('"'):
+            token = token[1:-1]
+        
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
         )
@@ -40,7 +62,6 @@ def get_current_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
-
 
 def get_current_active_user(
     current_user: models.User = Depends(get_current_user),

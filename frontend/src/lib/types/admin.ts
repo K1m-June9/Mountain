@@ -231,3 +231,15 @@ export interface InstitutionsUpdateStatus {
   incompleteCount: number;
   outdatedCount: number;
 }
+
+/**
+ * 관리자 화면용 확장된 댓글 정보
+ */
+export interface CommentWithDetails extends Comment {
+  author?: string;
+  postTitle?: string;
+  reports?: Array<{
+    reason: string;
+    description?: string;
+  }>;
+}

@@ -518,3 +518,83 @@ def read_comments_by_user(
         result.append(schemas.CommentWithUser(**comment_dict))
     
     return result
+
+@router.put("/{comment_id}/hide", response_model=schemas.Comment)
+def hide_comment(
+    *,
+    db: Session = Depends(deps.get_db),
+    comment_id: int,
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    댓글 숨김 처리
+    """
+    comment = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    
+    # 관리자/중재자만 숨김 처리 가능
+    if current_user.role not in ["admin", "moderator"]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    # 이미 숨김 처리된 경우
+    if comment.is_hidden:
+        return comment
+    
+    # 숨김 처리
+    comment.is_hidden = True
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+    
+    # 활동 로그 기록
+    activity_log = models.ActivityLog(
+        user_id=current_user.id,
+        action_type="hide_comment",
+        description=f"Admin {current_user.username} hid comment {comment.id}",
+        ip_address="127.0.0.1"  # 실제 구현에서는 요청의 IP 주소를 가져와야 함
+    )
+    db.add(activity_log)
+    db.commit()
+    
+    return comment
+
+@router.put("/{comment_id}/unhide", response_model=schemas.Comment)
+def unhide_comment(
+    *,
+    db: Session = Depends(deps.get_db),
+    comment_id: int,
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    댓글 숨김 해제
+    """
+    comment = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    
+    # 관리자/중재자만 숨김 해제 가능
+    if current_user.role not in ["admin", "moderator"]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    # 이미 표시 중인 경우
+    if not comment.is_hidden:
+        return comment
+    
+    # 숨김 해제
+    comment.is_hidden = False
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+    
+    # 활동 로그 기록
+    activity_log = models.ActivityLog(
+        user_id=current_user.id,
+        action_type="unhide_comment",
+        description=f"Admin {current_user.username} unhid comment {comment.id}",
+        ip_address="127.0.0.1"  # 실제 구현에서는 요청의 IP 주소를 가져와야 함
+    )
+    db.add(activity_log)
+    db.commit()
+    
+    return comment
