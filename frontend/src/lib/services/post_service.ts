@@ -57,13 +57,21 @@ export class PostService {
     return result as any;
   }
 
-  /**
-   * 게시물을 검색합니다.
-   * @param query 검색어
-   * @param filter 필터링 옵션 (페이지네이션, 카테고리, 기관 등)
-   * @returns 검색된 게시물 목록
-   */
+  // searchPosts 메서드 수정
   async searchPosts(query: string, filter: PostFilter = {}): Promise<ApiResult<PaginatedData<PostWithDetails>>> {
+    // 검색어가 없으면 빈 결과 반환
+    if (!query) {
+      return {
+        success: true,
+        data: {
+          items: [],
+          total: 0,
+          page: 1,
+          limit: filter.limit || 50
+        }
+      };
+    }
+    
     const { skip, limit = 50, category_id, institution_id } = filter;
     
     // page와 limit을 skip과 limit으로 변환
@@ -73,31 +81,63 @@ export class PostService {
     const params: Record<string, any> = {
       q: query,
       skip: calculatedSkip,
-      limit
+      limit,
+      sort: filter.sortBy || 'recent'
     };
     
     if (category_id) params.category_id = category_id;
     if (institution_id) params.institution_id = institution_id;
     
-    const result = await api.get<PostWithDetails[]>("/posts/search", params);
+    const result = await api.get<any>("/posts/search", params);
     
-    // 백엔드 응답을 PaginatedData 형식으로 변환
-    if (result.success && Array.isArray(result.data)) {
-      return {
-        success: true,
-        data: {
-          items: result.data,
-          total: result.data.length, // 백엔드가 total을 제공하지 않으면 배열 길이 사용
-          page: page,
-          limit: limit
-        },
-        meta: result.meta
-      };
+    // 백엔드 응답 처리
+    if (result.success) {
+      // 백엔드가 items, total, page, limit 형식으로 응답하는 경우
+      if (result.data && 'items' in result.data) {
+        return {
+          success: true,
+          data: {
+            items: result.data.items,
+            total: result.data.total,
+            page: result.data.page,
+            limit: result.data.limit
+          },
+          meta: result.meta
+        };
+      }
+      
+      // 백엔드가 배열로 응답하는 경우 (이전 버전 호환)
+      if (Array.isArray(result.data)) {
+        return {
+          success: true,
+          data: {
+            items: result.data,
+            total: result.data.length,
+            page: page,
+            limit: limit
+          },
+          meta: result.meta
+        };
+      }
     }
     
     return result as any;
   }
 
+// 검색 제안 메서드 추가
+async getSuggestions(query: string, limit: number = 5): Promise<ApiResult<any[]>> {
+  if (!query || query.length < 2) {
+    return {
+      success: true,
+      data: []
+    };
+  }
+  
+  return await api.get<any[]>("/posts/suggest", {
+    q: query,
+    limit
+  });
+}
   /**
    * 특정 게시물의 상세 정보를 조회합니다.
    * @param postId 게시물 ID

@@ -65,3 +65,10 @@ class PostWithDetails(Post):
     comment_count: int = 0
     like_count: int = 0
     dislike_count: int = 0
+
+# 페이지네이션 응답 스키마
+class PostSearchResponse(BaseModel):
+    items: List[PostWithDetails]
+    total: int
+    page: int
+    limit: int

@@ -16,15 +16,13 @@ interface SearchFiltersProps {
   sortBy: string
   filter: string
   institution: string
-  searchIn: string
 }
 
-export default function SearchFilters({ query, sortBy, filter, institution, searchIn }: SearchFiltersProps) {
+export default function SearchFilters({ query, sortBy, filter, institution }: SearchFiltersProps) {
   const router = useRouter()
   const [localSortBy, setLocalSortBy] = useState(sortBy)
   const [localFilter, setLocalFilter] = useState(filter)
   const [localInstitution, setLocalInstitution] = useState(institution)
-  const [localSearchIn, setLocalSearchIn] = useState(searchIn)
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   
   // 기관 목록 상태 관리
@@ -60,11 +58,10 @@ export default function SearchFilters({ query, sortBy, filter, institution, sear
   // 필터 변경 시 URL 업데이트
   const updateFilters = () => {
     const params = new URLSearchParams()
-    params.set("q", query)
+    if (query) params.set("q", query)
     params.set("sort", localSortBy)
     params.set("filter", localFilter)
     params.set("institution", localInstitution)
-    params.set("searchIn", localSearchIn)
 
     router.push(`/search?${params.toString()}`)
   }
@@ -74,10 +71,9 @@ export default function SearchFilters({ query, sortBy, filter, institution, sear
     setLocalSortBy("recent")
     setLocalFilter("all")
     setLocalInstitution("all")
-    setLocalSearchIn("all")
 
     const params = new URLSearchParams()
-    params.set("q", query)
+    if (query) params.set("q", query)
     router.push(`/search?${params.toString()}`)
   }
 
@@ -132,29 +128,7 @@ export default function SearchFilters({ query, sortBy, filter, institution, sear
       </div>
 
       {isFilterOpen && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-          <div>
-            <label className="text-sm font-medium mb-1 block">검색 범위</label>
-            <Select
-              value={localSearchIn}
-              onValueChange={(value) => {
-                setLocalSearchIn(value)
-                setTimeout(updateFilters, 0)
-              }}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="검색 범위" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">전체</SelectItem>
-                <SelectItem value="title">제목만</SelectItem>
-                <SelectItem value="content">내용만</SelectItem>
-                <SelectItem value="author">작성자</SelectItem>
-                <SelectItem value="comments">댓글</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
           <div>
             <label className="text-sm font-medium mb-1 block">게시물 유형</label>
             <Select

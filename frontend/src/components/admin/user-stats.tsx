@@ -81,41 +81,25 @@ export function UserStats() {
   const { toast } = useToast()
 
   useEffect(() => {
-    const loadStats = async () => {
-      setLoading(true)
-      try {
-        // 관리자 서비스에서 대시보드 통계 가져오기
-        const result = await adminService.getDashboardStats()
-        
-        if (result.success && result.data) {
-          const dashboardData = result.data as DashboardStats
-          
-          // 대시보드 통계를 UserStats 형식으로 변환
-          // 누락된 필드에 대해 기본값 제공
-          const userStats: UserStats = {
-            totalUsers: dashboardData.userCount || 0,
-            activeUsers: dashboardData.activeUserCount || 0,
-            suspendedUsers: dashboardData.suspendedUserCount || 0,
-            inactiveUsers: (dashboardData.userCount || 0) - 
-                          (dashboardData.activeUserCount || 0) - 
-                          (dashboardData.suspendedUserCount || 0),
-            monthlyStats: dashboardData.usersByMonth || [],
-            institutionStats: dashboardData.postsByInstitution || [],
-            roleStats: dashboardData.usersByRole || [],
-            statusStats: dashboardData.usersByStatus || []
-          }
-          
-          setStats(userStats)
-        } else {
-          toast.error("통계 데이터를 불러오는데 실패했습니다.")
-        }
-      } catch (error) {
-        console.error("Error loading stats:", error)
-        toast.error("통계 데이터를 불러오는데 실패했습니다.")
-      } finally {
-        setLoading(false)
+  // UserStats.tsx의 loadStats 함수 수정
+  const loadStats = async () => {
+    setLoading(true);
+    try {
+      // 새로운 메서드 사용
+      const result = await adminService.getUserDashboardStats();
+      
+      if (result.success && result.data) {
+        setStats(result.data);
+      } else {
+        toast.error("통계 데이터를 불러오는데 실패했습니다.");
       }
+    } catch (error) {
+      console.error("Error loading stats:", error);
+      toast.error("통계 데이터를 불러오는데 실패했습니다.");
+    } finally {
+      setLoading(false);
     }
+  };
 
     loadStats()
   }, [toast])

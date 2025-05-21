@@ -36,6 +36,9 @@ def read_user_me(
     """
     현재 사용자 정보 조회
     """
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
     return current_user
 
 

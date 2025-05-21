@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ThemeToggle } from "@/components/theme-toggle"
 import type { User } from "@/lib/types/user"
+import SearchSuggestions from "@/components/search-suggestions"
 
 export default function Header() {
   const router = useRouter()
@@ -53,6 +54,16 @@ export default function Header() {
                 <Search className="h-4 w-4" />
                 <span className="sr-only">검색</span>
               </Button>
+              
+              {/* 검색 제안 추가 */}
+              <SearchSuggestions 
+                query={searchQuery} 
+                className="absolute top-full left-0 w-full mt-1 z-50" 
+                onSelect={(postId) => {
+                  // 게시물로 이동
+                  router.push(`/posts/${postId}`);
+                }}
+              />
             </div>
           </form>
 

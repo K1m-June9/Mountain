@@ -6,7 +6,7 @@ export default function AdminUserDetailPage({ params }: { params: { id: string }
     <AdminAuthCheck>
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">사용자 상세 정보</h1>
-        <UserDetail userId={params.id} />
+        <UserDetail userId={String(params.id)} />
       </div>
     </AdminAuthCheck>
   )

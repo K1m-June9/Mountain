@@ -1,5 +1,7 @@
-// app/search/page.tsx
+"use client"
 
+import { useSearchParams } from "next/navigation"
+import { useEffect, useState } from "react"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
 import SearchResults from "@/components/search-results"
@@ -8,31 +10,23 @@ import SearchFilters from "@/components/search-filters"
 import NoticeBanner from "@/components/notice-banner"
 import { Metadata } from "next"
 
-// 메타데이터 추가
-export const metadata: Metadata = {
-  title: '검색 결과 | Mountain',
-  description: '검색 결과 페이지',
-}
-
-interface SearchPageProps {
-  searchParams?: {
-    q?: string
-    page?: string
-    sort?: string
-    filter?: string
-    institution?: string
-    searchIn?: string
-  }
-}
-
-export default function SearchPage({ searchParams }: SearchPageProps) {
+export default function SearchPage() {
+  const searchParams = useSearchParams()
+  
   // 검색 파라미터 처리
-  const query = searchParams?.q || ""
-  const currentPage = Number(searchParams?.page || "1")
-  const sortBy = searchParams?.sort || "recent"
-  const filter = searchParams?.filter || "all"
-  const institution = searchParams?.institution || "all"
-  const searchIn = searchParams?.searchIn || "all"
+  const query = searchParams.get("q") || ""
+  const currentPage = Number(searchParams.get("page") || "1")
+  const sortBy = searchParams.get("sort") || "recent"
+  const filter = searchParams.get("filter") || "all"
+  const institution = searchParams.get("institution") || "all"
+  
+  // 검색 결과 상태
+  const [isSearching, setIsSearching] = useState(false)
+
+  // 검색어가 변경될 때 검색 상태 업데이트
+  useEffect(() => {
+    setIsSearching(!!query)
+  }, [query])
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -50,17 +44,23 @@ export default function SearchPage({ searchParams }: SearchPageProps) {
                 sortBy={sortBy}
                 filter={filter}
                 institution={institution}
-                searchIn={searchIn}
               />
             </div>
-            <SearchResults
-              query={query}
-              currentPage={currentPage}
-              sortBy={sortBy}
-              filter={filter}
-              institution={institution}
-              searchIn={searchIn}
-            />
+            {isSearching ? (
+              <SearchResults
+                query={query}
+                currentPage={currentPage}
+                sortBy={sortBy}
+                filter={filter}
+                institution={institution}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="text-gray-500 mb-4">
+                  검색어를 입력하여 게시물을 검색해보세요.
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <div className="w-full md:w-[30%] h-[calc(100vh-64px-48px)] overflow-y-auto">

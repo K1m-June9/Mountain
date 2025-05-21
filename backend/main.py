@@ -6,6 +6,15 @@ from fastapi.responses import JSONResponse
 from backend.core.config import settings
 from backend.api.api import api_router
 
+import os
+import logging
+
+log_level = os.environ.get("LOGLEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, log_level),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json"

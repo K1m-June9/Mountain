@@ -16,7 +16,6 @@ interface SearchResultsProps {
   sortBy: string
   filter: string
   institution: string
-  searchIn: string
 }
 
 export default function SearchResults({
@@ -25,64 +24,64 @@ export default function SearchResults({
   sortBy,
   filter,
   institution,
-  searchIn,
 }: SearchResultsProps) {
   const [loading, setLoading] = useState(true)
   const [results, setResults] = useState<PostWithDetails[]>([])
   const [totalResults, setTotalResults] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const postsPerPage = 20
 
   useEffect(() => {
     const fetchSearchResults = async () => {
+      if (!query) {
+        setResults([])
+        setTotalResults(0)
+        setLoading(false)
+        return
+      }
+      
       setLoading(true)
       try {
         // 검색 파라미터 구성
         const params: Record<string, any> = {
           page: currentPage,
           limit: postsPerPage,
+          sort_by: sortBy
         }
+        
         if (institution && institution !== "all") {
           params.institution_id = institution;
-        }
-
-        if (sortBy) {
-          params.sortBy = sortBy
         }
 
         if (filter && filter !== "all") {
           params.type = filter
         }
 
-        if (institution && institution !== "all") {
-          params.institution_id = institution
-        }
-
-        if (searchIn && searchIn !== "all") {
-          params.searchIn = searchIn
-        }
-
-        // 리팩토링된 API 호출 방식으로 변경
+        // API 호출
         const response = await postService.searchPosts(query, params)
         
         if (response.success && response.data) {
           setResults(response.data.items)
           setTotalResults(response.data.total)
+          setTotalPages(Math.ceil(response.data.total / postsPerPage))
         } else {
           console.error("Error searching posts:", response.error)
           setResults([])
           setTotalResults(0)
+          setTotalPages(1)
         }
       } catch (error) {
         console.error("Error searching posts:", error)
         setResults([])
         setTotalResults(0)
+        setTotalPages(1)
       } finally {
         setLoading(false)
       }
     }
 
     fetchSearchResults()
-  }, [query, currentPage, sortBy, filter, institution, searchIn])
+  }, [query, currentPage, sortBy, filter, institution])
 
   // 기관별 색상 매핑
   const institutionColors: Record<string, string> = {
@@ -177,10 +176,11 @@ export default function SearchResults({
       {/* 페이지네이션 */}
       <div className="mt-4">
         <Pagination
+          currentPage={currentPage}
           totalItems={totalResults}
           itemsPerPage={postsPerPage}
-          currentPage={currentPage}
-          baseUrl={`/search?q=${query}&sort=${sortBy}&filter=${filter}&institution=${institution}&searchIn=${searchIn}&page=`}
+          totalPages={totalPages}
+          baseUrl={`/search?q=${query}&sort=${sortBy}&filter=${filter}&institution=${institution}&page=`}
         />
       </div>
     </div>

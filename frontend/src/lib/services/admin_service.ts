@@ -19,7 +19,8 @@ import type {
   UserActivitiesResponse,
   ExtendedDashboardStats,
   InstitutionsUpdateStatus,
-  CommentWithDetails
+  CommentWithDetails,
+  UserDashboardStats
 } from "../types/admin";
 import type { User } from "../types/user";
 import type { Report, ReportFilter } from "../types/report";
@@ -948,6 +949,12 @@ export class AdminService {
   // async getDashboardStats(): Promise<ApiResult<DashboardStats>> {
   //   return await api.get<DashboardStats>("/admin/dashboard");
   // }
+  /**
+   * 사용자 통계 대시보드용 데이터 가져오기
+   */
+  async getUserDashboardStats(): Promise<ApiResult<UserDashboardStats>> {
+    return api.get<UserDashboardStats>('/admin/user-dashboard-stats');
+  }
 }
 
 // 싱글톤 인스턴스 생성

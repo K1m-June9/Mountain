@@ -5,7 +5,7 @@ import os
 from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, and_
 
 from backend import models, schemas
 from backend.api import deps
@@ -115,6 +115,163 @@ def create_post(
     db.commit()
     
     return post
+
+# 기존 search_posts 함수 수정
+@router.get("/search")#, response_model=schemas.PostSearchResponse
+def search_posts(
+    *,
+    db: Session = Depends(deps.get_db),
+    q: str = Query(None, description="검색어"),  # 필수에서 선택적으로 변경
+    skip: int = 0,
+    limit: int = 50,
+    sort: str = Query("recent", description="정렬 방식 (recent, old, views, likes, comments)"),
+    category_id: Optional[int] = None,
+    institution_id: Optional[int] = None,
+    current_user: Optional[models.User] = Depends(deps.get_optional_current_user),
+) -> Any:
+    """
+    게시물 검색 (제목만 검색)
+    """
+    query = db.query(models.Post)
+    
+    # 검색어로 필터링 (제목에서만 검색)
+    if q:
+        query = query.filter(models.Post.title.ilike(f"%{q}%"))
+    
+    # 카테고리 필터링
+    if category_id:
+        query = query.filter(models.Post.category_id == category_id)
+    
+    # 기관 필터링
+    if institution_id:
+        query = query.filter(models.Post.institution_id == institution_id)
+    
+    # 관리자나 중재자가 아니면 숨겨진 게시물 제외
+    if not current_user or (current_user.role != "admin" and current_user.role != "moderator"):
+        query = query.filter(models.Post.is_hidden == False)
+    
+    # 정렬 방식 적용
+    if sort == "old":
+        query = query.order_by(models.Post.created_at.asc())
+    elif sort == "views":
+        query = query.order_by(models.Post.view_count.desc())
+    elif sort == "likes":
+        # 좋아요 수로 정렬 (서브쿼리 사용)
+        like_count = db.query(
+            models.Post.id,
+            func.count(models.Reaction.id).label("like_count")
+        ).outerjoin(
+            models.Reaction, 
+            and_(
+                models.Reaction.post_id == models.Post.id,
+                models.Reaction.type == "like"
+            )
+        ).group_by(models.Post.id).subquery()
+        
+        query = query.outerjoin(
+            like_count, models.Post.id == like_count.c.id
+        ).order_by(like_count.c.like_count.desc(), models.Post.created_at.desc())
+    elif sort == "comments":
+        # 댓글 수로 정렬 (서브쿼리 사용)
+        comment_count = db.query(
+            models.Post.id,
+            func.count(models.Comment.id).label("comment_count")
+        ).outerjoin(
+            models.Comment, models.Comment.post_id == models.Post.id
+        ).group_by(models.Post.id).subquery()
+        
+        query = query.outerjoin(
+            comment_count, models.Post.id == comment_count.c.id
+        ).order_by(comment_count.c.comment_count.desc(), models.Post.created_at.desc())
+    else:  # "recent" (기본값)
+        query = query.order_by(models.Post.created_at.desc())
+    
+    # 총 결과 수 계산
+    total_count = query.count()
+    
+    # 페이지네이션
+    posts = query.offset(skip).limit(limit).all()
+    
+    # 추가 정보 포함
+    result = []
+    for post in posts:
+        # 댓글 수 계산
+        comment_count = db.query(func.count(models.Comment.id)).filter(
+            models.Comment.post_id == post.id,
+            models.Comment.is_hidden == False
+        ).scalar()
+        
+        # 좋아요/싫어요 수 계산
+        like_count = db.query(func.count(models.Reaction.id)).filter(
+            models.Reaction.post_id == post.id,
+            models.Reaction.type == "like"
+        ).scalar()
+        
+        dislike_count = db.query(func.count(models.Reaction.id)).filter(
+            models.Reaction.post_id == post.id,
+            models.Reaction.type == "dislike"
+        ).scalar()
+        
+        # PostWithDetails 객체 생성
+        post_dict = {
+            **schemas.Post.model_validate(post).model_dump(),
+            "user": schemas.User.model_validate(post.user),
+            "institution": schemas.Institution.model_validate(post.institution) if post.institution else None,
+            "category": schemas.Category.model_validate(post.category) if post.category else None,
+            "images": [schemas.PostImage.model_validate(image) for image in post.images],
+            "comment_count": comment_count,
+            "like_count": like_count,
+            "dislike_count": dislike_count
+        }
+        result.append(schemas.PostWithDetails(**post_dict))
+    
+    # 응답에 메타데이터 추가
+    return {
+        "items": result,
+        "total": total_count,
+        "page": skip // limit + 1,
+        "limit": limit
+    }
+
+# 검색 제안 API 엔드포인트 추가
+@router.get("/suggest")#, response_model=List[dict]
+def suggest_posts(
+    *,
+    db: Session = Depends(deps.get_db),
+    q: str = Query(None, description="검색어"),
+    limit: int = Query(5, description="제안 결과 수"),
+    current_user: Optional[models.User] = Depends(deps.get_optional_current_user),
+) -> Any:
+    """
+    게시물 제목 검색 제안
+    """
+    if not q or len(q) < 2:
+        return []
+    
+    query = db.query(models.Post)
+    
+    # 제목에서 검색어 포함 항목 찾기
+    query = query.filter(models.Post.title.ilike(f"%{q}%"))
+    
+    # 관리자나 중재자가 아니면 숨겨진 게시물 제외
+    if not current_user or (current_user.role != "admin" and current_user.role != "moderator"):
+        query = query.filter(models.Post.is_hidden == False)
+    
+    # 최신순 정렬 및 제한
+    query = query.order_by(models.Post.created_at.desc()).limit(limit)
+    
+    # 간략한 정보만 포함
+    suggestions = []
+    for post in query.all():
+        suggestions.append({
+            "id": post.id,
+            "title": post.title,
+            "username": post.user.username,
+            "created_at": post.created_at.isoformat()
+        })
+    
+    return suggestions
+
 
 
 @router.get("/{post_id}", response_model=schemas.PostWithDetails)
@@ -434,83 +591,6 @@ def update_post(
     
     return post
 
-@router.get("/search", response_model=List[schemas.PostWithDetails])
-def search_posts(
-    *,
-    db: Session = Depends(deps.get_db),
-    q: str = Query(..., description="검색어"),
-    skip: int = 0,
-    limit: int = 50,
-    category_id: Optional[int] = None,
-    institution_id: Optional[int] = None,
-    current_user: Optional[models.User] = Depends(deps.get_optional_current_user),
-) -> Any:
-    """
-    게시물 검색
-    """
-    query = db.query(models.Post)
-    
-    # 검색어로 필터링 (제목과 내용에서 검색)
-    if q:
-        query = query.filter(
-            or_(
-                models.Post.title.ilike(f"%{q}%"),
-                models.Post.content.ilike(f"%{q}%")
-            )
-        )
-    
-    # 카테고리 필터링
-    if category_id:
-        query = query.filter(models.Post.category_id == category_id)
-    
-    # 기관 필터링
-    if institution_id:
-        query = query.filter(models.Post.institution_id == institution_id)
-    
-    # 관리자나 중재자가 아니면 숨겨진 게시물 제외
-    if not current_user or (current_user.role != "admin" and current_user.role != "moderator"):
-        query = query.filter(models.Post.is_hidden == False)
-    
-    # 최신순 정렬
-    query = query.order_by(models.Post.created_at.desc())
-    
-    # 페이지네이션
-    posts = query.offset(skip).limit(limit).all()
-    
-    # 추가 정보 포함 (기존 read_posts 함수와 동일한 로직)
-    result = []
-    for post in posts:
-        # 댓글 수 계산
-        comment_count = db.query(func.count(models.Comment.id)).filter(
-            models.Comment.post_id == post.id,
-            models.Comment.is_hidden == False
-        ).scalar()
-        
-        # 좋아요/싫어요 수 계산
-        like_count = db.query(func.count(models.Reaction.id)).filter(
-            models.Reaction.post_id == post.id,
-            models.Reaction.type == "like"
-        ).scalar()
-        
-        dislike_count = db.query(func.count(models.Reaction.id)).filter(
-            models.Reaction.post_id == post.id,
-            models.Reaction.type == "dislike"
-        ).scalar()
-        
-        # PostWithDetails 객체 생성
-        post_dict = {
-            **schemas.Post.model_validate(post).model_dump(),
-            "user": schemas.User.model_validate(post.user),
-            "institution": schemas.Institution.model_validate(post.institution) if post.institution else None,
-            "category": schemas.Category.model_validate(post.category) if post.category else None,
-            "images": [schemas.PostImage.model_validate(image) for image in post.images],
-            "comment_count": comment_count,
-            "like_count": like_count,
-            "dislike_count": dislike_count
-        }
-        result.append(schemas.PostWithDetails(**post_dict))
-    
-    return result
 
 @router.post("/upload-image", response_model=schemas.PostImage)
 def upload_post_image(

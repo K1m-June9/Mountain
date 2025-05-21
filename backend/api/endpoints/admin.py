@@ -113,19 +113,19 @@ def get_admin_stats(
     }
 
 
-@router.get("/settings", response_model=List[schemas.Setting])
-def get_settings(
-    db: Session = Depends(deps.get_db),
-    current_user: models.User = Depends(deps.get_optional_current_user),
-) -> Any:
-    """
-    시스템 설정 조회 (관리자만 가능)
-    """
-    # if current_user.role != "admin":
-    #     raise HTTPException(status_code=403, detail="Not enough permissions")
+# @router.get("/settings", response_model=List[schemas.Setting])
+# def get_settings(
+#     db: Session = Depends(deps.get_db),
+#     current_user: models.User = Depends(deps.get_optional_current_user),
+# ) -> Any:
+#     """
+#     시스템 설정 조회 (관리자만 가능)
+#     """
+#     # if current_user.role != "admin":
+#     #     raise HTTPException(status_code=403, detail="Not enough permissions")
     
-    settings = db.query(models.Setting).all()
-    return settings
+#     settings = db.query(models.Setting).all()
+#     return settings
 
 
 @router.put("/settings/{key_name}", response_model=schemas.Setting)
@@ -828,3 +828,75 @@ def reset_section_settings(
     
     # 초기화된 설정 반환
     return DEFAULT_SETTINGS[section]
+
+@router.get("/user-dashboard-stats", response_model=schemas.UserDashboardStats)
+def get_user_dashboard_stats(
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_optional_current_user),
+) -> Any:
+    """
+    사용자 통계 대시보드용 데이터 제공
+    """
+    # if current_user.role not in ["admin", "moderator"]:
+    #     raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    # 사용자 총계 및 상태별 통계
+    total_users = db.query(func.count(models.User.id)).scalar()
+    active_users = db.query(func.count(models.User.id)).filter(models.User.status == "active").scalar()
+    inactive_users = db.query(func.count(models.User.id)).filter(models.User.status == "inactive").scalar()
+    suspended_users = db.query(func.count(models.User.id)).filter(models.User.status == "suspended").scalar()
+    
+    # 역할별 사용자 통계
+    role_stats = db.query(
+        models.User.role,
+        func.count(models.User.id)
+    ).group_by(models.User.role).all()
+    
+    # 월별 신규 사용자 통계 (최근 6개월)
+    now = datetime.utcnow()
+    monthly_stats = []
+    
+    for i in range(5, -1, -1):
+        month_start = (now.replace(day=1) - timedelta(days=1)).replace(day=1) - timedelta(days=30*i)
+        month_end = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+        
+        month_name = month_start.strftime("%Y-%m")
+        new_users = db.query(func.count(models.User.id)).filter(
+            models.User.created_at >= month_start,
+            models.User.created_at <= month_end
+        ).scalar()
+        
+        active_users_month = db.query(func.count(models.ActivityLog.user_id.distinct())).filter(
+            models.ActivityLog.created_at >= month_start,
+            models.ActivityLog.created_at <= month_end
+        ).scalar()
+        
+        monthly_stats.append({
+            "month": month_name,
+            "newUsers": new_users,
+            "activeUsers": active_users_month
+        })
+    
+    # 기관별 게시물 통계
+    institution_stats = db.query(
+        models.Institution.name,
+        func.count(models.Post.id)
+    ).join(
+        models.Post,
+        models.Post.institution_id == models.Institution.id
+    ).group_by(models.Institution.name).limit(5).all()
+    
+    return {
+        "totalUsers": total_users,
+        "activeUsers": active_users,
+        "inactiveUsers": inactive_users,
+        "suspendedUsers": suspended_users,
+        "roleStats": [{"role": role, "count": count} for role, count in role_stats],
+        "statusStats": [
+            {"status": "active", "count": active_users},
+            {"status": "inactive", "count": inactive_users},
+            {"status": "suspended", "count": suspended_users}
+        ],
+        "monthlyStats": monthly_stats,
+        "institutionStats": [{"institution": name, "count": count} for name, count in institution_stats]
+    }

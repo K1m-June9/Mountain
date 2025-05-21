@@ -76,6 +76,7 @@ export interface PostFilter {
   institution_id?: ID;
   user_id?: ID;
   search?: string;
+  sortBy?: string;  // 추가된 속성
 }
 
 /**

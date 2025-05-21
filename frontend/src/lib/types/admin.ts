@@ -243,3 +243,17 @@ export interface CommentWithDetails extends Comment {
     description?: string;
   }>;
 }
+
+/**
+ * 사용자 대시보드 통계 정보
+ */
+export interface UserDashboardStats {
+  totalUsers: number;
+  activeUsers: number;
+  inactiveUsers: number;
+  suspendedUsers: number;
+  roleStats: Array<{ role: string; count: number }>;
+  statusStats: Array<{ status: string; count: number }>;
+  monthlyStats: Array<{ month: string; newUsers: number; activeUsers: number }>;
+  institutionStats: Array<{ institution: string; count: number }>;
+}
