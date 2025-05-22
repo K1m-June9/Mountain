@@ -15,12 +15,10 @@ class User(Base):
     role = Column(Enum("user", "moderator", "admin"), nullable=False, default="user")
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
-    # User 모델에 status 필드와 restrictions 관계 추가
     status = Column(Enum("active", "inactive", "suspended"), nullable=False, default="active")
     suspended_until = Column(DateTime)
-    restrictions = relationship("RestrictionHistory", foreign_keys="RestrictionHistory.user_id", back_populates="user")
 
-    # Relationships
+    restrictions = relationship("RestrictionHistory", foreign_keys="RestrictionHistory.user_id", back_populates="user")
     posts = relationship("Post", back_populates="user", cascade="all, delete-orphan")
     comments = relationship("Comment", back_populates="user", cascade="all, delete-orphan")
     reactions = relationship("Reaction", back_populates="user", cascade="all, delete-orphan")

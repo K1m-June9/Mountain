@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ThemeToggle } from "@/components/theme-toggle"
 import type { User } from "@/lib/types/user"
 import SearchSuggestions from "@/components/search-suggestions"
+import NotificationDropdown from "@/components/notificaion-dropdown"
 
 export default function Header() {
   const router = useRouter()
@@ -111,6 +112,8 @@ function UserMenu({ user, onLogout }: UserMenuProps) {
           </Link>
         </Button>
       )}
+      {/* 알림 드롭다운 추가 */}
+      <NotificationDropdown />
       <Link href="/profile">
         <Avatar className="h-8 w-8 cursor-pointer bg-primary text-primary-foreground">
           <AvatarFallback>{getUserInitials(user)}</AvatarFallback>

@@ -135,11 +135,19 @@ def register_user(
         ip_address="127.0.0.1"  # 실제 구현에서는 요청의 IP 주소를 가져와야 함
     )
     db.add(activity_log)
+
+    # 환영 메시지 알림 생성
+    welcome_notification = models.Notification(
+        user_id=user.id,
+        type="admin_message",
+        content="환영합니다! Mountain 커뮤니티에 가입해주셔서 감사합니다.",
+        is_read=False
+    )
+    db.add(welcome_notification)
     db.commit()
     
     return user
 
-# backend/api/endpoints/auth.py에 추가
 
 @router.post("/change-password", response_model=schemas.User)
 def change_password(

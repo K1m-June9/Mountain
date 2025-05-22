@@ -50,7 +50,6 @@ class UserStatusUpdate(BaseModel):
 class UserRoleUpdate(BaseModel):
     role: str
 
-# backend/schemas/user.py 또는 backend/schemas/__init__.py에 추가
 
 class PasswordChange(BaseModel):
     current_password: str

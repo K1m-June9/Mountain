@@ -780,7 +780,7 @@ export class AdminService {
   }
 
   /**
-   * 기관 정보 업데이트 필요 여부 확인
+   * 기관 정보 업데이트 필요 여부 확인 postId - post_id - post_Id - postid
    * @returns 업데이트 필요 여부 정보
    */
   async checkInstitutionsNeedUpdate(): Promise<ApiResult<InstitutionsUpdateStatus>> {

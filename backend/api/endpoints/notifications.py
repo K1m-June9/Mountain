@@ -105,3 +105,18 @@ def delete_notification(
     db.commit()
     
     return notification
+
+@router.get("/unread-count", response_model=dict)
+def get_unread_count(
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    읽지 않은 알림 개수 조회
+    """
+    count = db.query(models.Notification).filter(
+        models.Notification.user_id == current_user.id,
+        models.Notification.is_read == False
+    ).count()
+    
+    return {"count": count}
