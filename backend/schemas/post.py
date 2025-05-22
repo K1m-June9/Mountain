@@ -65,6 +65,8 @@ class PostWithDetails(Post):
     comment_count: int = 0
     like_count: int = 0
     dislike_count: int = 0
+    liked_by_me: bool = False
+    disliked_by_me: bool = False
 
 # 페이지네이션 응답 스키마
 class PostSearchResponse(BaseModel):

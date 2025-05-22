@@ -40,7 +40,7 @@ export default function NoticeBanner() {
   }, [])
 
   // 표시할 공지사항 수 결정
-  const displayNotices = isExpanded ? notices : notices.slice(0, 2)
+  const displayNotices = isExpanded ? notices : notices.slice(0, 10)
 
   // 로딩 중이거나 공지사항이 없는 경우 처리
   if (isLoading) {

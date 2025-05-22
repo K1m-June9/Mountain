@@ -10,7 +10,6 @@ from backend.api import deps
 
 router = APIRouter()
 
-
 @router.get("/{post_id}/comments", response_model=List[schemas.CommentWithReplies])
 def read_comments_by_post(
     post_id: int,
@@ -61,6 +60,22 @@ def read_comments_by_post(
             models.Reaction.type == "dislike"
         ).scalar()
         
+        # 현재 사용자의 반응 상태 확인 (로그인한 경우만)
+        liked_by_me = False
+        disliked_by_me = False
+        if current_user:
+            liked_by_me = db.query(models.Reaction).filter(
+                models.Reaction.comment_id == comment.id,
+                models.Reaction.user_id == current_user.id,
+                models.Reaction.type == "like"
+            ).first() is not None
+            
+            disliked_by_me = db.query(models.Reaction).filter(
+                models.Reaction.comment_id == comment.id,
+                models.Reaction.user_id == current_user.id,
+                models.Reaction.type == "dislike"
+            ).first() is not None
+        
         # 답글 가져오기
         replies = []
         for reply in comment.replies:
@@ -79,25 +94,44 @@ def read_comments_by_post(
                 models.Reaction.type == "dislike"
             ).scalar()
             
-            # 답글 객체 생성 - from_orm과 dict 대신 model_validate와 model_dump 사용
+            # 현재 사용자의 답글 반응 상태 확인 (로그인한 경우만)
+            reply_liked_by_me = False
+            reply_disliked_by_me = False
+            if current_user:
+                reply_liked_by_me = db.query(models.Reaction).filter(
+                    models.Reaction.comment_id == reply.id,
+                    models.Reaction.user_id == current_user.id,
+                    models.Reaction.type == "like"
+                ).first() is not None
+                
+                reply_disliked_by_me = db.query(models.Reaction).filter(
+                    models.Reaction.comment_id == reply.id,
+                    models.Reaction.user_id == current_user.id,
+                    models.Reaction.type == "dislike"
+                ).first() is not None
+            
+            # 답글 객체 생성
             reply_dict = {
                 **schemas.Comment.model_validate(reply).model_dump(),
                 "user": schemas.User.model_validate(reply.user),
                 "like_count": reply_like_count,
-                "dislike_count": reply_dislike_count
+                "dislike_count": reply_dislike_count,
+                "liked_by_me": reply_liked_by_me,
+                "disliked_by_me": reply_disliked_by_me
             }
             replies.append(schemas.CommentWithUser(**reply_dict))
         
-        # 댓글 객체 생성 - from_orm과 dict 대신 model_validate와 model_dump 사용
+        # 댓글 객체 생성
         comment_dict = {
             **schemas.Comment.model_validate(comment).model_dump(),
             "user": schemas.User.model_validate(comment.user),
             "like_count": like_count,
             "dislike_count": dislike_count,
+            "liked_by_me": liked_by_me,
+            "disliked_by_me": disliked_by_me,
             "replies": replies
         }
         result.append(schemas.CommentWithReplies(**comment_dict))
-        #print(f"API Response for post {post_id} comments: {json.dumps([comment.dict() for comment in result], indent=2)}")#나중에 삭제
 
     return result
 
@@ -508,12 +542,17 @@ def read_comments_by_user(
             models.Reaction.type == "dislike"
         ).scalar()
         
+        # 게시물 제목 가져오기
+        post = db.query(models.Post).filter(models.Post.id == comment.post_id).first()
+        post_title = post.title if post else f"게시물 #{comment.post_id}"
+        
         # 댓글 객체 생성
         comment_dict = {
             **schemas.Comment.model_validate(comment).model_dump(),
             "user": schemas.User.model_validate(comment.user),
             "like_count": like_count,
-            "dislike_count": dislike_count
+            "dislike_count": dislike_count,
+            "post_title": post_title  # 게시물 제목 추가
         }
         result.append(schemas.CommentWithUser(**comment_dict))
     

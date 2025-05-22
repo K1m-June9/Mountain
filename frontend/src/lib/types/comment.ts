@@ -41,6 +41,9 @@ export interface CommentWithUser extends Comment {
   user: User;
   like_count: number;
   dislike_count: number;
+  liked_by_me?: boolean;
+  disliked_by_me?: boolean;
+  post_title?: string;  // 게시물 제목 필드 추가
 }
 
 /**

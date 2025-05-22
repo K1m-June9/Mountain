@@ -12,6 +12,80 @@ from backend.api import deps
 
 router = APIRouter()
 
+@router.post("/images/upload", response_model=schemas.PostImage) #경로 변경
+def upload_post_image(
+    *,
+    db: Session = Depends(deps.get_db),
+    file: UploadFile = File(...),
+    post_id: Optional[int] = Form(None),  # Form 파라미터로 post_id 추가
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    게시물 이미지 업로드
+    """
+    # 파일 확장자 검사
+    allowed_extensions = ["jpg", "jpeg", "png", "gif"]
+    file_extension = file.filename.split(".")[-1].lower()
+    
+    if file_extension not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"지원하지 않는 파일 형식입니다. 지원되는 형식: {', '.join(allowed_extensions)}"
+        )
+    
+    # 파일 크기 제한 (5MB)
+    max_size = 5 * 1024 * 1024  # 5MB
+    file_size = 0
+    contents = b""
+    
+    # 파일 내용 읽기
+    for chunk in file.file:
+        contents += chunk
+        file_size += len(chunk)
+        if file_size > max_size:
+            raise HTTPException(
+                status_code=400,
+                detail=f"파일 크기가 너무 큽니다. 최대 크기: 5MB"
+            )
+    
+    # post_id가 제공된 경우 게시물 존재 여부 확인
+    if post_id:
+        post = db.query(models.Post).filter(models.Post.id == post_id).first()
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found")
+        
+        # 권한 확인: 작성자 또는 관리자만 이미지 추가 가능
+        if post.user_id != current_user.id and current_user.role != "admin":
+            raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    # 파일명 생성 (고유한 이름으로 변경)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    unique_filename = f"{timestamp}_{uuid.uuid4().hex}.{file_extension}"
+    
+    # 파일 저장 경로
+    upload_dir = "uploads/posts"
+    os.makedirs(upload_dir, exist_ok=True)
+    file_path = os.path.join(upload_dir, unique_filename)
+    
+    # 파일 저장
+    with open(file_path, "wb") as f:
+        f.write(contents)
+    
+    # 이미지 URL 생성
+    image_url = f"/uploads/posts/{unique_filename}"
+    
+    # 이미지 정보 저장 (post_id 연결)
+    post_image = models.PostImage(
+        image_url=image_url,
+        post_id=post_id  # post_id 설정
+    )
+    db.add(post_image)
+    db.commit()
+    db.refresh(post_image)
+    
+    return post_image
+
+
 
 @router.get("/", response_model=List[schemas.PostWithDetails])
 def read_posts(
@@ -272,14 +346,12 @@ def suggest_posts(
     
     return suggestions
 
-
-
 @router.get("/{post_id}", response_model=schemas.PostWithDetails)
 def read_post(
     *,
     db: Session = Depends(deps.get_db),
     post_id: int,
-    current_user: Optional[models.User] = Depends(deps.get_optional_current_user),  # 선택적 인증으로 변경
+    current_user: Optional[models.User] = Depends(deps.get_optional_current_user),
 ) -> Any:
     """
     특정 게시물 조회
@@ -313,6 +385,22 @@ def read_post(
         models.Reaction.type == "dislike"
     ).scalar()
     
+    # 현재 사용자의 반응 상태 확인 (로그인한 경우만)
+    liked_by_me = False
+    disliked_by_me = False
+    if current_user:
+        liked_by_me = db.query(models.Reaction).filter(
+            models.Reaction.post_id == post.id,
+            models.Reaction.user_id == current_user.id,
+            models.Reaction.type == "like"
+        ).first() is not None
+        
+        disliked_by_me = db.query(models.Reaction).filter(
+            models.Reaction.post_id == post.id,
+            models.Reaction.user_id == current_user.id,
+            models.Reaction.type == "dislike"
+        ).first() is not None
+    
     # PostWithDetails 객체 생성
     post_dict = {
         **schemas.Post.model_validate(post).model_dump(),
@@ -322,12 +410,12 @@ def read_post(
         "images": [schemas.PostImage.model_validate(image) for image in post.images],
         "comment_count": comment_count,
         "like_count": like_count,
-        "dislike_count": dislike_count
+        "dislike_count": dislike_count,
+        "liked_by_me": liked_by_me,
+        "disliked_by_me": disliked_by_me
     }
     
     return schemas.PostWithDetails(**post_dict)
-
-# posts.py 파일에 추가할 엔드포인트
 
 @router.post("/{post_id}/like", response_model=dict)
 def like_post(
@@ -590,80 +678,6 @@ def update_post(
     db.commit()
     
     return post
-
-
-@router.post("/upload-image", response_model=schemas.PostImage)
-def upload_post_image(
-    *,
-    db: Session = Depends(deps.get_db),
-    file: UploadFile = File(...),
-    post_id: Optional[int] = Form(None),  # Form 파라미터로 post_id 추가
-    current_user: models.User = Depends(deps.get_current_active_user),
-) -> Any:
-    """
-    게시물 이미지 업로드
-    """
-    # 파일 확장자 검사
-    allowed_extensions = ["jpg", "jpeg", "png", "gif"]
-    file_extension = file.filename.split(".")[-1].lower()
-    
-    if file_extension not in allowed_extensions:
-        raise HTTPException(
-            status_code=400,
-            detail=f"지원하지 않는 파일 형식입니다. 지원되는 형식: {', '.join(allowed_extensions)}"
-        )
-    
-    # 파일 크기 제한 (5MB)
-    max_size = 5 * 1024 * 1024  # 5MB
-    file_size = 0
-    contents = b""
-    
-    # 파일 내용 읽기
-    for chunk in file.file:
-        contents += chunk
-        file_size += len(chunk)
-        if file_size > max_size:
-            raise HTTPException(
-                status_code=400,
-                detail=f"파일 크기가 너무 큽니다. 최대 크기: 5MB"
-            )
-    
-    # post_id가 제공된 경우 게시물 존재 여부 확인
-    if post_id:
-        post = db.query(models.Post).filter(models.Post.id == post_id).first()
-        if not post:
-            raise HTTPException(status_code=404, detail="Post not found")
-        
-        # 권한 확인: 작성자 또는 관리자만 이미지 추가 가능
-        if post.user_id != current_user.id and current_user.role != "admin":
-            raise HTTPException(status_code=403, detail="Not enough permissions")
-    
-    # 파일명 생성 (고유한 이름으로 변경)
-    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-    unique_filename = f"{timestamp}_{uuid.uuid4().hex}.{file_extension}"
-    
-    # 파일 저장 경로
-    upload_dir = "uploads/posts"
-    os.makedirs(upload_dir, exist_ok=True)
-    file_path = os.path.join(upload_dir, unique_filename)
-    
-    # 파일 저장
-    with open(file_path, "wb") as f:
-        f.write(contents)
-    
-    # 이미지 URL 생성
-    image_url = f"/uploads/posts/{unique_filename}"
-    
-    # 이미지 정보 저장 (post_id 연결)
-    post_image = models.PostImage(
-        image_url=image_url,
-        post_id=post_id  # post_id 설정
-    )
-    db.add(post_image)
-    db.commit()
-    db.refresh(post_image)
-    
-    return post_image
 
 @router.get("/liked-by/{user_id}", response_model=List[schemas.PostWithDetails])
 def read_liked_posts_by_user(

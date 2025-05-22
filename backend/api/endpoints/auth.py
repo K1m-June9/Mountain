@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -211,3 +211,27 @@ def check_username_availability(
         "available": True,
         "message": "사용 가능한 사용자명입니다."
     }
+
+@router.post("/logout", response_model=dict)
+def logout(
+    db: Session = Depends(deps.get_db),
+    current_user: Optional[models.User] = Depends(deps.get_optional_current_user)
+) -> Any:
+    """
+    사용자 로그아웃 처리
+    """
+    # 현재 사용자가 있는 경우에만 활동 로그 기록
+    if current_user:
+        activity_log = models.ActivityLog(
+            user_id=current_user.id,
+            action_type="logout",
+            description=f"User {current_user.username} logged out",
+            ip_address="127.0.0.1"  # 실제 구현에서는 요청의 IP 주소를 가져와야 함
+        )
+        db.add(activity_log)
+        db.commit()
+    
+    # JWT 기반 인증에서는 클라이언트 측에서 토큰을 삭제하는 것이 주요 로그아웃 메커니즘입니다.
+    # 서버 측에서는 특별한 작업이 필요하지 않지만, 필요한 경우 토큰 블랙리스트 등을 구현할 수 있습니다.
+    
+    return {"success": True, "message": "Successfully logged out"}

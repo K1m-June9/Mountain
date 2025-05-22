@@ -158,6 +158,10 @@ export interface AdminUserDetail {
   like_count: number;
   dislike_count: number;
   last_active?: string;
+  created_post_count: number;
+  deleted_post_count: number;
+  created_comment_count: number;
+  deleted_comment_count: number;
 }
 
 /**

@@ -176,39 +176,35 @@ async getSuggestions(query: string, limit: number = 5): Promise<ApiResult<any[]>
   }
 
   /**
-   * 게시물에 좋아요를 추가합니다.
+   * 게시물에 좋아요를 추가하거나 취소합니다.
    * @param postId 게시물 ID
+   * @param isLiked 현재 좋아요 상태
    * @returns 좋아요 수
    */
-  async likePost(postId: ID): Promise<ApiResult<PostReactionResponse>> {
-    return await api.post<PostReactionResponse>(`/posts/${postId}/like`);
+  async toggleLikePost(postId: ID, isLiked: boolean): Promise<ApiResult<PostReactionResponse>> {
+    if (isLiked) {
+      // 이미 좋아요한 상태면 취소
+      return await api.delete<PostReactionResponse>(`/posts/${postId}/like`);
+    } else {
+      // 좋아요하지 않은 상태면 추가
+      return await api.post<PostReactionResponse>(`/posts/${postId}/like`);
+    }
   }
 
   /**
-   * 게시물 좋아요를 취소합니다.
+   * 게시물에 싫어요를 추가하거나 취소합니다.
    * @param postId 게시물 ID
-   * @returns 좋아요 수
-   */
-  async unlikePost(postId: ID): Promise<ApiResult<PostReactionResponse>> {
-    return await api.delete<PostReactionResponse>(`/posts/${postId}/like`);
-  }
-
-  /**
-   * 게시물에 싫어요를 추가합니다.
-   * @param postId 게시물 ID
+   * @param isDisliked 현재 싫어요 상태
    * @returns 싫어요 수
    */
-  async dislikePost(postId: ID): Promise<ApiResult<PostReactionResponse>> {
-    return await api.post<PostReactionResponse>(`/posts/${postId}/dislike`);
-  }
-
-  /**
-   * 게시물 싫어요를 취소합니다.
-   * @param postId 게시물 ID
-   * @returns 싫어요 수
-   */
-  async undislikePost(postId: ID): Promise<ApiResult<PostReactionResponse>> {
-    return await api.delete<PostReactionResponse>(`/posts/${postId}/dislike`);
+  async toggleDislikePost(postId: ID, isDisliked: boolean): Promise<ApiResult<PostReactionResponse>> {
+    if (isDisliked) {
+      // 이미 싫어요한 상태면 취소
+      return await api.delete<PostReactionResponse>(`/posts/${postId}/dislike`);
+    } else {
+      // 싫어요하지 않은 상태면 추가
+      return await api.post<PostReactionResponse>(`/posts/${postId}/dislike`);
+    }
   }
 
   /**
@@ -226,7 +222,7 @@ async getSuggestions(query: string, limit: number = 5): Promise<ApiResult<any[]>
       formData.append('post_id', post_id.toString());
     }
     
-    return await api.post<PostImage>("/posts/upload-image", formData, {
+    return await api.post<PostImage>("/posts/images/upload", formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }

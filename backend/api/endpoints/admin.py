@@ -231,9 +231,41 @@ def get_admin_user_detail(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # 게시물, 댓글, 좋아요, 싫어요 수 계산
-    post_count = db.query(func.count(models.Post.id)).filter(models.Post.user_id == user_id).scalar()
-    comment_count = db.query(func.count(models.Comment.id)).filter(models.Comment.user_id == user_id).scalar()
+    # 현재 존재하는 게시물 수 (숨김 여부 상관없이)
+    post_count = db.query(func.count(models.Post.id)).filter(
+        models.Post.user_id == user_id
+    ).scalar()
+    
+    # 생성한 게시물 수 (ActivityLog에서 계산)
+    created_post_count = db.query(func.count(models.ActivityLog.id)).filter(
+        models.ActivityLog.user_id == user_id,
+        models.ActivityLog.action_type == "create_post"
+    ).scalar()
+    
+    # 삭제한 게시물 수 (ActivityLog에서 계산)
+    deleted_post_count = db.query(func.count(models.ActivityLog.id)).filter(
+        models.ActivityLog.user_id == user_id,
+        models.ActivityLog.action_type == "delete_post"
+    ).scalar()
+    
+    # 현재 존재하는 댓글 수 (숨김 여부 상관없이)
+    comment_count = db.query(func.count(models.Comment.id)).filter(
+        models.Comment.user_id == user_id
+    ).scalar()
+    
+    # 생성한 댓글 수 (ActivityLog에서 계산)
+    created_comment_count = db.query(func.count(models.ActivityLog.id)).filter(
+        models.ActivityLog.user_id == user_id,
+        models.ActivityLog.action_type == "create_comment"
+    ).scalar()
+    
+    # 삭제한 댓글 수 (ActivityLog에서 계산)
+    deleted_comment_count = db.query(func.count(models.ActivityLog.id)).filter(
+        models.ActivityLog.user_id == user_id,
+        models.ActivityLog.action_type == "delete_comment"
+    ).scalar()
+    
+    # 좋아요, 싫어요 수
     like_count = db.query(func.count(models.Reaction.id)).filter(
         models.Reaction.user_id == user_id,
         models.Reaction.type == "like"
@@ -257,6 +289,10 @@ def get_admin_user_detail(
         "comment_count": comment_count,
         "like_count": like_count,
         "dislike_count": dislike_count,
+        "created_post_count": created_post_count,
+        "deleted_post_count": deleted_post_count,
+        "created_comment_count": created_comment_count,
+        "deleted_comment_count": deleted_comment_count,
         "last_active": last_active
     }
     
@@ -301,7 +337,31 @@ def get_user_activities(
     
     # 액션 타입별 필터링
     if action_type:
-        query = query.filter(models.ActivityLog.action_type == action_type)
+        # 특수 케이스 처리: "post"는 "create_post"와 "delete_post"를 포함
+        if action_type == "post":
+            query = query.filter(
+                or_(
+                    models.ActivityLog.action_type == "create_post",
+                    models.ActivityLog.action_type == "delete_post"
+                )
+            )
+        # 특수 케이스 처리: "comment"는 "create_comment"와 "delete_comment"를 포함
+        elif action_type == "comment":
+            query = query.filter(
+                or_(
+                    models.ActivityLog.action_type == "create_comment",
+                    models.ActivityLog.action_type == "delete_comment"
+                )
+            )
+        # 특수 케이스 처리: "like"는 "like"와 관련된 모든 액션 포함
+        elif action_type == "like":
+            query = query.filter(models.ActivityLog.action_type.like("%like%"))
+        # 특수 케이스 처리: "dislike"는 "dislike"와 관련된 모든 액션 포함
+        elif action_type == "dislike":
+            query = query.filter(models.ActivityLog.action_type.like("%dislike%"))
+        # 일반 케이스: 정확히 일치하는 액션 타입
+        else:
+            query = query.filter(models.ActivityLog.action_type == action_type)
     
     # 총 개수 계산
     total = query.count()
@@ -314,6 +374,66 @@ def get_user_activities(
     activities_json = jsonable_encoder(activities)
     return {
         "activities": activities_json,
+        "total": total
+    }
+
+@router.get("/users/{user_id}/reactions", response_model=Dict[str, Any])
+def get_user_reactions(
+    user_id: int,
+    db: Session = Depends(deps.get_db),
+    skip: int = 0,
+    limit: int = 50,
+    type: Optional[str] = None,
+    current_user: models.User = Depends(deps.get_optional_current_user),
+) -> Any:
+    """
+    사용자의 반응(좋아요/싫어요) 내역 조회
+    """
+    # if current_user.role not in ["admin", "moderator"]:
+    #     raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    # 기본 쿼리 생성
+    query = db.query(models.Reaction).filter(models.Reaction.user_id == user_id)
+    
+    # 반응 타입별 필터링
+    if type and type in ["like", "dislike"]:
+        query = query.filter(models.Reaction.type == type)
+    
+    # 총 개수 계산
+    total = query.count()
+    
+    # 최신순 정렬
+    query = query.order_by(models.Reaction.created_at.desc())
+    
+    # 페이지네이션
+    reactions = query.offset(skip).limit(limit).all()
+    
+    # 결과 구성
+    result_reactions = []
+    for reaction in reactions:
+        # 반응 대상 정보 가져오기
+        target_type = "post" if reaction.post_id else "comment"
+        target_id = reaction.post_id if reaction.post_id else reaction.comment_id
+        
+        # 사용자 정보 가져오기
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        username = user.username if user else "Unknown User"
+        
+        # 설명 생성
+        description = f"User {username} {reaction.type}d {target_type} {target_id}"
+        
+        # 반응 객체 생성
+        reaction_dict = {
+            "id": reaction.id,
+            "user_id": reaction.user_id,
+            "action_type": reaction.type,  # 활동 로그와 형식 맞추기
+            "description": description,
+            "created_at": reaction.created_at
+        }
+        result_reactions.append(reaction_dict)
+    
+    return {
+        "activities": result_reactions,  # 활동 로그와 형식 맞추기
         "total": total
     }
 

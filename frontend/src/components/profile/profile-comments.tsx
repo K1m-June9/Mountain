@@ -15,12 +15,8 @@ interface ProfileCommentsProps {
   userId: ID
 }
 
-interface UserComment extends CommentWithUser {
-  post_title: string;
-}
-
 export default function ProfileComments({ userId }: ProfileCommentsProps) {
-  const [comments, setComments] = useState<UserComment[]>([])
+  const [comments, setComments] = useState<CommentWithUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
@@ -40,16 +36,10 @@ export default function ProfileComments({ userId }: ProfileCommentsProps) {
         
         const fetchedComments = result.data.items;
         
-        // 백엔드에서 post_title을 제공하지 않으므로 임시로 설정
-        const commentsWithPostTitle = fetchedComments.map(comment => ({
-          ...comment,
-          post_title: `게시물 #${comment.post_id}` // 임시 제목
-        }));
-        
         if (fetchedComments.length === 0) {
           setHasMore(false);
         } else {
-          setComments((prev) => (page === 1 ? commentsWithPostTitle : [...prev, ...commentsWithPostTitle]));
+          setComments((prev) => (page === 1 ? fetchedComments : [...prev, ...fetchedComments]));
         }
       } catch (error) {
         console.error("Failed to fetch comments:", error);
@@ -83,7 +73,7 @@ export default function ProfileComments({ userId }: ProfileCommentsProps) {
                   <MessageSquare className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div className="flex-1">
                     <Link href={`/posts/${comment.post_id}`} className="font-medium hover:underline">
-                      {comment.post_title}
+                      {comment.post_title || `게시물 #${comment.post_id}`}
                     </Link>
                     <p className="mt-1 text-sm">{comment.content}</p>
                     <div className="mt-2 text-xs text-muted-foreground">{formatDate(comment.created_at)}</div>

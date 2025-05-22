@@ -16,7 +16,6 @@ import ReportForm from "@/components/report-form"
 // 새로 분리한 컴포넌트 임포트
 import PostHeader from "@/components/post-header"
 import PostContent from "@/components/post-content"
-import PostActions from "@/components/post-actions"
 import PostFooter from "@/components/post-footer"
 import CommentForm from "@/components/comment-form"
 import CommentList from "@/components/comment-list"
@@ -72,9 +71,9 @@ export default function PostDetail({ postId }: PostDetailProps) {
         const postData = postResponse.data
         setPost(postData)
         
-        // 좋아요/싫어요 상태는 백엔드에서 제공하지 않으므로 기본값으로 설정
-        setLikedByMe(false)
-        setDislikedByMe(false)
+        // 백엔드에서 제공하는 좋아요/싫어요 상태 사용
+        setLikedByMe(postData.liked_by_me || false)
+        setDislikedByMe(postData.disliked_by_me || false)
 
         // 댓글 불러오기 - postId를 숫자로 변환
         const commentsResponse = await commentService.getPostComments(Number(postId))
@@ -112,14 +111,15 @@ export default function PostDetail({ postId }: PostDetailProps) {
     if (!isAuthenticated || !post) return
 
     try {
+      // 현재 좋아요/싫어요 상태 저장
+      const isLiked = likedByMe
+      const isDisliked = dislikedByMe
+
       // 낙관적 UI 업데이트 - API 응답을 기다리지 않고 먼저 UI 업데이트
-      const newLikedByMe = !likedByMe
-      
-      // 좋아요 상태 업데이트
-      setLikedByMe(newLikedByMe)
+      setLikedByMe(!isLiked)
       
       // 좋아요를 누르면 싫어요는 취소
-      if (newLikedByMe && dislikedByMe) {
+      if (!isLiked && isDisliked) {
         setDislikedByMe(false)
       }
       
@@ -129,41 +129,45 @@ export default function PostDetail({ postId }: PostDetailProps) {
         
         return {
           ...prev,
-          like_count: newLikedByMe ? prev.like_count + 1 : prev.like_count - 1,
-          dislike_count: newLikedByMe && dislikedByMe ? prev.dislike_count - 1 : prev.dislike_count,
+          liked_by_me: !isLiked,
+          disliked_by_me: isLiked && isDisliked ? false : prev.disliked_by_me,
+          like_count: isLiked ? Math.max(0, prev.like_count - 1) : prev.like_count + 1,
+          dislike_count: !isLiked && isDisliked ? Math.max(0, prev.dislike_count - 1) : prev.dislike_count,
         }
       })
 
-      // API 호출
-      const response = await postService.likePost(post.id)
+      // 토글 API 호출 (현재 상태에 따라 적절한 API 호출)
+      const response = await postService.toggleLikePost(post.id, isLiked)
 
-      // 409 Conflict는 에러로 처리하지 않음 (이미 좋아요 누른 상태)
-      if (!response.success && response.error?.code !== "HTTP_ERROR_409") {
-        throw new Error(response.error?.message || "좋아요 처리에 실패했습니다.")
+      if (!response.success) {
+        // 409 Conflict는 무시 (이미 처리된 상태)
+        if (response.error?.code !== "HTTP_ERROR_409") {
+          throw new Error(response.error?.message || "좋아요 처리에 실패했습니다.")
+        }
       }
 
       // 성공 메시지는 유지 (선택적)
       if (response.success) {
-        toast.success("좋아요를 표시했습니다.")
+        toast.success(isLiked ? "좋아요를 취소했습니다." : "좋아요를 표시했습니다.")
       }
     } catch (error) {
       console.error("Failed to like post:", error)
       toast.error(error instanceof Error ? error.message : "좋아요 처리에 실패했습니다.")
       
       // 에러 발생 시 UI 상태 복원
-      setLikedByMe(!likedByMe)
-      if (dislikedByMe) {
-        setDislikedByMe(true)
-      }
+      setLikedByMe(likedByMe)
+      setDislikedByMe(dislikedByMe)
       
-      // 게시물 좋아요 수 복원
+      // 게시물 좋아요/싫어요 수 복원
       setPost((prev) => {
         if (!prev) return null
         
         return {
           ...prev,
-          like_count: likedByMe ? prev.like_count + 1 : prev.like_count - 1,
-          dislike_count: dislikedByMe ? prev.dislike_count + 1 : prev.dislike_count,
+          liked_by_me: likedByMe,
+          disliked_by_me: dislikedByMe,
+          like_count: likedByMe ? prev.like_count + 1 : Math.max(0, prev.like_count - 1),
+          dislike_count: dislikedByMe ? prev.dislike_count + 1 : Math.max(0, prev.dislike_count - 1),
         }
       })
     }
@@ -174,14 +178,15 @@ export default function PostDetail({ postId }: PostDetailProps) {
     if (!isAuthenticated || !post) return
 
     try {
+      // 현재 좋아요/싫어요 상태 저장
+      const isLiked = likedByMe
+      const isDisliked = dislikedByMe
+
       // 낙관적 UI 업데이트 - API 응답을 기다리지 않고 먼저 UI 업데이트
-      const newDislikedByMe = !dislikedByMe
-      
-      // 싫어요 상태 업데이트
-      setDislikedByMe(newDislikedByMe)
+      setDislikedByMe(!isDisliked)
       
       // 싫어요를 누르면 좋아요는 취소
-      if (newDislikedByMe && likedByMe) {
+      if (!isDisliked && isLiked) {
         setLikedByMe(false)
       }
       
@@ -191,32 +196,34 @@ export default function PostDetail({ postId }: PostDetailProps) {
         
         return {
           ...prev,
-          dislike_count: newDislikedByMe ? prev.dislike_count + 1 : prev.dislike_count - 1,
-          like_count: newDislikedByMe && likedByMe ? prev.like_count - 1 : prev.like_count,
+          liked_by_me: isDisliked && isLiked ? false : prev.liked_by_me,
+          disliked_by_me: !isDisliked,
+          like_count: !isDisliked && isLiked ? Math.max(0, prev.like_count - 1) : prev.like_count,
+          dislike_count: isDisliked ? Math.max(0, prev.dislike_count - 1) : prev.dislike_count + 1,
         }
       })
 
-      // API 호출
-      const response = await postService.dislikePost(post.id)
+      // 토글 API 호출 (현재 상태에 따라 적절한 API 호출)
+      const response = await postService.toggleDislikePost(post.id, isDisliked)
 
-      // 409 Conflict는 에러로 처리하지 않음 (이미 싫어요 누른 상태)
-      if (!response.success && response.error?.code !== "HTTP_ERROR_409") {
-        throw new Error(response.error?.message || "싫어요 처리에 실패했습니다.")
+      if (!response.success) {
+        // 409 Conflict는 무시 (이미 처리된 상태)
+        if (response.error?.code !== "HTTP_ERROR_409") {
+          throw new Error(response.error?.message || "싫어요 처리에 실패했습니다.")
+        }
       }
 
       // 성공 메시지는 유지 (선택적)
       if (response.success) {
-        toast.success("싫어요를 표시했습니다.")
+        toast.success(isDisliked ? "싫어요를 취소했습니다." : "싫어요를 표시했습니다.")
       }
     } catch (error) {
       console.error("Failed to dislike post:", error)
       toast.error(error instanceof Error ? error.message : "싫어요 처리에 실패했습니다.")
       
       // 에러 발생 시 UI 상태 복원
-      setDislikedByMe(!dislikedByMe)
-      if (likedByMe) {
-        setLikedByMe(true)
-      }
+      setLikedByMe(likedByMe)
+      setDislikedByMe(dislikedByMe)
       
       // 게시물 싫어요 수 복원
       setPost((prev) => {
@@ -224,42 +231,65 @@ export default function PostDetail({ postId }: PostDetailProps) {
         
         return {
           ...prev,
-          dislike_count: dislikedByMe ? prev.dislike_count + 1 : prev.dislike_count - 1,
-          like_count: likedByMe ? prev.like_count + 1 : prev.like_count,
+          liked_by_me: likedByMe,
+          disliked_by_me: dislikedByMe,
+          like_count: likedByMe ? prev.like_count + 1 : Math.max(0, prev.like_count - 1),
+          dislike_count: dislikedByMe ? prev.dislike_count + 1 : Math.max(0, prev.dislike_count - 1),
         }
       })
     }
   }
-
-  // src/components/post-detail.tsx
+  
   // 댓글 좋아요 처리 함수 수정
   const handleCommentLike = async (commentId: ID) => {
     if (!isAuthenticated) return
 
     try {
+      // 댓글 찾기
+      const findComment = (comments: CommentWithReplies[], id: ID): CommentWithUser | null => {
+        for (const comment of comments) {
+          if (comment.id === id) return comment
+          if (comment.replies) {
+            for (const reply of comment.replies) {
+              if (reply.id === id) return reply
+            }
+          }
+        }
+        return null
+      }
+
+      const comment = findComment(comments, commentId)
+      if (!comment) return
+
+      // 이미 좋아요한 경우 취소, 아니면 좋아요 추가
+      const isLiked = comment.liked_by_me
+      const isDisliked = comment.disliked_by_me
+
       // 낙관적 UI 업데이트
       setComments((prev) =>
-        prev.map((comment) => {
-          if (comment.id === commentId) {
+        prev.map((c) => {
+          if (c.id === commentId) {
             return {
-              ...comment,
-              like_count: comment.like_count + 1,
-              // 좋아요를 누르면 싫어요는 취소
-              dislike_count: comment.dislike_count,
+              ...c,
+              liked_by_me: !isLiked,
+              disliked_by_me: false,
+              like_count: isLiked ? Math.max(0, c.like_count - 1) : c.like_count + 1,
+              dislike_count: isDisliked ? Math.max(0, c.dislike_count - 1) : c.dislike_count,
             }
           }
 
           // 답글 확인
-          if (comment.replies) {
+          if (c.replies) {
             return {
-              ...comment,
-              replies: comment.replies.map((reply) => {
+              ...c,
+              replies: c.replies.map((reply) => {
                 if (reply.id === commentId) {
                   return {
                     ...reply,
-                    like_count: reply.like_count + 1,
-                    // 좋아요를 누르면 싫어요는 취소
-                    dislike_count: reply.dislike_count,
+                    liked_by_me: !isLiked,
+                    disliked_by_me: false,
+                    like_count: isLiked ? Math.max(0, reply.like_count - 1) : reply.like_count + 1,
+                    dislike_count: isDisliked ? Math.max(0, reply.dislike_count - 1) : reply.dislike_count,
                   }
                 }
                 return reply
@@ -267,46 +297,60 @@ export default function PostDetail({ postId }: PostDetailProps) {
             }
           }
 
-          return comment
+          return c
         }),
       )
 
-      // API 호출 - 반환값에서 like_count, dislike_count를 사용하지 않음
+      // API 호출
       await commentService.likeComment(commentId)
       
     } catch (error) {
       console.error("Failed to like comment:", error)
       toast.error(error instanceof Error ? error.message : "댓글 좋아요 처리에 실패했습니다.")
       
-      // 에러 발생 시 UI 상태 복원 로직 추가
-      setComments((prev) =>
-        prev.map((comment) => {
-          if (comment.id === commentId) {
-            return {
-              ...comment,
-              like_count: Math.max(0, comment.like_count - 1),
+      // 에러 발생 시 UI 상태 복원 - 원래 상태로 되돌림
+      const comment = comments.find(c => c.id === commentId) || 
+                      comments.flatMap(c => c.replies || []).find(r => r.id === commentId)
+      
+      if (comment) {
+        const isLiked = comment.liked_by_me
+        const isDisliked = comment.disliked_by_me
+        
+        setComments((prev) =>
+          prev.map((c) => {
+            if (c.id === commentId) {
+              return {
+                ...c,
+                liked_by_me: isLiked,
+                disliked_by_me: isDisliked,
+                like_count: isLiked ? c.like_count : Math.max(0, c.like_count - 1),
+                dislike_count: isDisliked ? c.dislike_count : Math.max(0, c.dislike_count - 1),
+              }
             }
-          }
 
-          // 답글 확인
-          if (comment.replies) {
-            return {
-              ...comment,
-              replies: comment.replies.map((reply) => {
-                if (reply.id === commentId) {
-                  return {
-                    ...reply,
-                    like_count: Math.max(0, reply.like_count - 1),
+            // 답글 확인
+            if (c.replies) {
+              return {
+                ...c,
+                replies: c.replies.map((reply) => {
+                  if (reply.id === commentId) {
+                    return {
+                      ...reply,
+                      liked_by_me: isLiked,
+                      disliked_by_me: isDisliked,
+                      like_count: isLiked ? reply.like_count : Math.max(0, reply.like_count - 1),
+                      dislike_count: isDisliked ? reply.dislike_count : Math.max(0, reply.dislike_count - 1),
+                    }
                   }
-                }
-                return reply
-              }),
+                  return reply
+                }),
+              }
             }
-          }
 
-          return comment
-        }),
-      )
+            return c
+          }),
+        )
+      }
     }
   }
 
@@ -315,29 +359,51 @@ export default function PostDetail({ postId }: PostDetailProps) {
     if (!isAuthenticated) return
 
     try {
+      // 댓글 찾기
+      const findComment = (comments: CommentWithReplies[], id: ID): CommentWithUser | null => {
+        for (const comment of comments) {
+          if (comment.id === id) return comment
+          if (comment.replies) {
+            for (const reply of comment.replies) {
+              if (reply.id === id) return reply
+            }
+          }
+        }
+        return null
+      }
+
+      const comment = findComment(comments, commentId)
+      if (!comment) return
+
+      // 이미 싫어요한 경우 취소, 아니면 싫어요 추가
+      const isLiked = comment.liked_by_me
+      const isDisliked = comment.disliked_by_me
+
       // 낙관적 UI 업데이트
       setComments((prev) =>
-        prev.map((comment) => {
-          if (comment.id === commentId) {
+        prev.map((c) => {
+          if (c.id === commentId) {
             return {
-              ...comment,
-              dislike_count: comment.dislike_count + 1,
-              // 싫어요를 누르면 좋아요는 취소
-              like_count: comment.like_count,
+              ...c,
+              liked_by_me: false,
+              disliked_by_me: !isDisliked,
+              like_count: isLiked ? Math.max(0, c.like_count - 1) : c.like_count,
+              dislike_count: isDisliked ? Math.max(0, c.dislike_count - 1) : c.dislike_count + 1,
             }
           }
 
           // 답글 확인
-          if (comment.replies) {
+          if (c.replies) {
             return {
-              ...comment,
-              replies: comment.replies.map((reply) => {
+              ...c,
+              replies: c.replies.map((reply) => {
                 if (reply.id === commentId) {
                   return {
                     ...reply,
-                    dislike_count: reply.dislike_count + 1,
-                    // 싫어요를 누르면 좋아요는 취소
-                    like_count: reply.like_count,
+                    liked_by_me: false,
+                    disliked_by_me: !isDisliked,
+                    like_count: isLiked ? Math.max(0, reply.like_count - 1) : reply.like_count,
+                    dislike_count: isDisliked ? Math.max(0, reply.dislike_count - 1) : reply.dislike_count + 1,
                   }
                 }
                 return reply
@@ -345,46 +411,60 @@ export default function PostDetail({ postId }: PostDetailProps) {
             }
           }
 
-          return comment
+          return c
         }),
       )
 
-      // API 호출 - 반환값에서 like_count, dislike_count를 사용하지 않음
+      // API 호출
       await commentService.dislikeComment(commentId)
       
     } catch (error) {
       console.error("Failed to dislike comment:", error)
       toast.error(error instanceof Error ? error.message : "댓글 싫어요 처리에 실패했습니다.")
       
-      // 에러 발생 시 UI 상태 복원 로직 추가
-      setComments((prev) =>
-        prev.map((comment) => {
-          if (comment.id === commentId) {
-            return {
-              ...comment,
-              dislike_count: Math.max(0, comment.dislike_count - 1),
+      // 에러 발생 시 UI 상태 복원 - 원래 상태로 되돌림
+      const comment = comments.find(c => c.id === commentId) || 
+                      comments.flatMap(c => c.replies || []).find(r => r.id === commentId)
+      
+      if (comment) {
+        const isLiked = comment.liked_by_me
+        const isDisliked = comment.disliked_by_me
+        
+        setComments((prev) =>
+          prev.map((c) => {
+            if (c.id === commentId) {
+              return {
+                ...c,
+                liked_by_me: isLiked,
+                disliked_by_me: isDisliked,
+                like_count: isLiked ? c.like_count : Math.max(0, c.like_count - 1),
+                dislike_count: isDisliked ? c.dislike_count : Math.max(0, c.dislike_count - 1),
+              }
             }
-          }
 
-          // 답글 확인
-          if (comment.replies) {
-            return {
-              ...comment,
-              replies: comment.replies.map((reply) => {
-                if (reply.id === commentId) {
-                  return {
-                    ...reply,
-                    dislike_count: Math.max(0, reply.dislike_count - 1),
+            // 답글 확인
+            if (c.replies) {
+              return {
+                ...c,
+                replies: c.replies.map((reply) => {
+                  if (reply.id === commentId) {
+                    return {
+                      ...reply,
+                      liked_by_me: isLiked,
+                      disliked_by_me: isDisliked,
+                      like_count: isLiked ? reply.like_count : Math.max(0, reply.like_count - 1),
+                      dislike_count: isDisliked ? reply.dislike_count : Math.max(0, reply.dislike_count - 1),
+                    }
                   }
-                }
-                return reply
-              }),
+                  return reply
+                }),
+              }
             }
-          }
 
-          return comment
-        }),
-      )
+            return c
+          }),
+        )
+      }
     }
   }
 
@@ -641,9 +721,9 @@ export default function PostDetail({ postId }: PostDetailProps) {
       </div>
     )
   }
-
+  //<div className="container max-w-4xl py-6">
   return (
-    <div className="container max-w-4xl py-6">
+    <div className="w-full py-6">
       <div className="mb-6">
         <Link href="/" className="flex items-center text-muted-foreground hover:text-foreground">
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -671,20 +751,13 @@ export default function PostDetail({ postId }: PostDetailProps) {
         <PostFooter
           post={post}
           isPostAuthor={isPostAuthor}
+          isAuthenticated={isAuthenticated}
           onEdit={handleEditPost}
           onDelete={handleShowDeleteDialog}
+          onLike={handleLike}
+          onDislike={handleDislike}
+          onReport={() => setShowReportForm(true)}
         />
-
-        {/* 게시물 액션 버튼들 */}
-        <div className="px-6 pb-6">
-          <PostActions
-            post={post}
-            isAuthenticated={isAuthenticated}
-            onLike={handleLike}
-            onDislike={handleDislike}
-            onReport={() => setShowReportForm(true)}
-          />
-        </div>
       </Card>
 
       {/* 게시물 신고 폼 */}

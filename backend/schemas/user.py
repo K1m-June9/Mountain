@@ -56,12 +56,16 @@ class PasswordChange(BaseModel):
     current_password: str
     new_password: str
 
-    # 관리자용 사용자 상세 정보
+# 관리자용 사용자 상세 정보
 class AdminUserDetail(User):
     post_count: int
     comment_count: int
     like_count: int
     dislike_count: int
+    created_post_count: int
+    deleted_post_count: int
+    created_comment_count: int
+    deleted_comment_count: int
     last_active: Optional[datetime] = None
 
 # 대시보드 통계 정보

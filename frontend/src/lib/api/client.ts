@@ -106,22 +106,29 @@ class ApiClient {
         cache: options?.cache,
       };
 
+      // client.ts의 request 메서드 내부 수정
       if (data) {
-        // Content-Type에 따라 데이터 처리
-        if (headers["Content-Type"] === "application/x-www-form-urlencoded") {
-          // URLSearchParams 객체인 경우 그대로 사용
+        // FormData 객체 처리 추가
+        if (data instanceof FormData) {
+          // FormData는 Content-Type 헤더를 자동으로 설정하도록 함
+          // 브라우저가 자동으로 boundary를 추가함
+          delete headers["Content-Type"];
+          requestOptions.body = data;
+        }
+        // URLSearchParams 처리 (기존 코드)
+        else if (headers["Content-Type"] === "application/x-www-form-urlencoded") {
           if (data instanceof URLSearchParams) {
             requestOptions.body = data;
           } else {
-            // 객체인 경우 URLSearchParams로 변환
             const formData = new URLSearchParams();
             Object.entries(data).forEach(([key, value]) => {
               formData.append(key, String(value));
             });
             requestOptions.body = formData;
           }
-        } else {
-          // 기본적으로 JSON으로 직렬화
+        }
+        // 기본 JSON 처리 (기존 코드)
+        else {
           requestOptions.body = JSON.stringify(data);
         }
       }

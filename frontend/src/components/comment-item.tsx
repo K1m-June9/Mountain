@@ -138,22 +138,22 @@ export default function CommentItem({
             <Button
               variant="ghost"
               size="sm"
-              className="flex items-center gap-1"
+              className={`flex items-center gap-1 ${comment.liked_by_me ? "text-blue-500 font-medium" : ""}`}
               onClick={() => onLike(comment.id)}
               disabled={!isAuthenticated}
             >
-              <ThumbsUp className="h-3 w-3" />
+              <ThumbsUp className={`h-3 w-3 ${comment.liked_by_me ? "fill-blue-500" : ""}`} />
               <span className="text-xs">{comment.like_count || 0}</span>
             </Button>
 
             <Button
               variant="ghost"
               size="sm"
-              className="flex items-center gap-1"
+              className={`flex items-center gap-1 ${comment.disliked_by_me ? "text-red-500 font-medium" : ""}`}
               onClick={() => onDislike(comment.id)}
               disabled={!isAuthenticated}
             >
-              <ThumbsDown className="h-3 w-3" />
+              <ThumbsDown className={`h-3 w-3 ${comment.disliked_by_me ? "fill-red-500" : ""}`} />
               <span className="text-xs">{comment.dislike_count || 0}</span>
             </Button>
 

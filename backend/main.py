@@ -2,12 +2,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from backend.core.config import settings
 from backend.api.api import api_router
 
 import os
 import logging
+
+# 업로드 디렉토리가 없으면 생성
+os.makedirs("uploads", exist_ok=True)
 
 log_level = os.environ.get("LOGLEVEL", "INFO").upper()
 logging.basicConfig(
@@ -20,7 +24,8 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
-
+# 정적 파일 서빙 설정
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # API 라우터 포함
 app.include_router(api_router, prefix=settings.API_V1_STR)

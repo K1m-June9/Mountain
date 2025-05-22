@@ -3,7 +3,23 @@
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
-import { User, Mail, Calendar, Clock, Shield, AlertTriangle, FileText, MessageSquare, ThumbsUp, ThumbsDown, Flag, RefreshCw, Check, X, ArrowLeft } from 'lucide-react'
+import {
+  User,
+  Mail,
+  Calendar,
+  Clock,
+  Shield,
+  AlertTriangle,
+  FileText,
+  MessageSquare,
+  ThumbsUp,
+  ThumbsDown,
+  Flag,
+  RefreshCw,
+  Check,
+  X,
+  ArrowLeft,
+} from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -16,7 +32,6 @@ import Pagination from "@/components/pagination"
 import adminService from "@/lib/services/admin_service"
 import { useToast } from "@/hooks/use-sonner"
 import type { AdminUserDetail, UserActivity, RestrictionHistory, UserStatusUpdateRequest } from "@/lib/types/admin"
-import type { ID } from "@/lib/types/common"
 
 interface UserDetailProps {
   userId: string
@@ -55,7 +70,7 @@ export function UserDetail({ userId }: UserDetailProps) {
       setLoading(true)
       try {
         const result = await adminService.getUserById(Number(userId))
-        
+
         if (result.success && result.data) {
           setUser(result.data)
           setSelectedRole(result.data.role)
@@ -81,18 +96,22 @@ export function UserDetail({ userId }: UserDetailProps) {
 
   // 사용자 활동 데이터 로드
   useEffect(() => {
-    const loadActivities = async () => {
-      if (!user) return
+    if (!user) return
 
-      setActivityLoading(true)
+    setActivityLoading(true)
+
+    const loadData = async () => {
       try {
         const skip = (activityPage - 1) * 10
-        const result = await adminService.getUserActivities(
-          Number(userId),
-          skip,
-          10,
-          activityType || undefined
-        )
+        let result
+
+        // 좋아요/싫어요 탭인 경우 getUserReactions 호출
+        if (activityType === "like" || activityType === "dislike") {
+          result = await adminService.getUserReactions(Number(userId), skip, 10, activityType)
+        } else {
+          // 백엔드에서 필터링된 결과를 직접 사용
+          result = await adminService.getUserActivities(Number(userId), skip, 10, activityType || undefined)
+        }
 
         if (result.success && result.data) {
           setActivities(result.data.activities)
@@ -108,7 +127,7 @@ export function UserDetail({ userId }: UserDetailProps) {
       }
     }
 
-    loadActivities()
+    loadData()
   }, [userId, user, activityType, activityPage, toast])
 
   // 사용자 제재 처리
@@ -133,7 +152,7 @@ export function UserDetail({ userId }: UserDetailProps) {
         status: "suspended",
         suspended_until: suspendedUntil,
         reason: suspendReason,
-        duration: days
+        duration: days,
       }
 
       const result = await adminService.updateUserStatus(Number(userId), data)
@@ -202,7 +221,7 @@ export function UserDetail({ userId }: UserDetailProps) {
       }
     } catch (error) {
       console.error("Error unsuspending user:", error)
-      toast.error("사용자 제재 해제 중 오류가 발생했습니다.")
+      toast.error("사용자 제재 해제 중 오��가 발생했습니다.")
     } finally {
       setActionLoading(false)
     }
@@ -223,9 +242,11 @@ export function UserDetail({ userId }: UserDetailProps) {
           setUser(userResult.data)
         }
 
-        toast.success(`사용자 역할이 ${
+        toast.success(
+          `사용자 역할이 ${
             selectedRole === "admin" ? "관리자" : selectedRole === "moderator" ? "중재자" : "일반 사용자"
-          }(으)로 변경되었습니다.`)
+          }(으)로 변경되었습니다.`,
+        )
 
         // 대화상자 닫기
         setRoleDialogOpen(false)
@@ -287,7 +308,7 @@ export function UserDetail({ userId }: UserDetailProps) {
             <div className="flex flex-col items-center text-center">
               <div className="relative h-24 w-24 overflow-hidden rounded-full">
                 <Image
-                  src="/placeholder.svg?height=96&width=96&query=user"
+                  src="/abstract-geometric-shapes.png"
                   alt={user.username || "사용자 프로필"}
                   fill
                   className="object-cover"
@@ -355,7 +376,9 @@ export function UserDetail({ userId }: UserDetailProps) {
 
                 <div className="flex items-center text-sm">
                   <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <span>최근 활동: {user.last_active ? new Date(user.last_active).toLocaleDateString() : "정보 없음"}</span>
+                  <span>
+                    최근 활동: {user.last_active ? new Date(user.last_active).toLocaleDateString() : "정보 없음"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -367,7 +390,8 @@ export function UserDetail({ userId }: UserDetailProps) {
             <CardTitle>사용자 통계</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="grid grid-cols-4 gap-4">
+              {/* 첫 번째 줄: 게시물 관련 통계 및 좋아요 */}
               <div className="flex flex-col items-center justify-center rounded-lg border p-3">
                 <FileText className="h-8 w-8 text-blue-500" />
                 <span className="mt-2 text-2xl font-bold">{user.post_count}</span>
@@ -375,15 +399,40 @@ export function UserDetail({ userId }: UserDetailProps) {
               </div>
 
               <div className="flex flex-col items-center justify-center rounded-lg border p-3">
-                <MessageSquare className="h-8 w-8 text-green-500" />
-                <span className="mt-2 text-2xl font-bold">{user.comment_count}</span>
-                <span className="text-xs text-muted-foreground">댓글</span>
+                <FileText className="h-8 w-8 text-green-500" />
+                <span className="mt-2 text-2xl font-bold">{user.created_post_count || user.post_count}</span>
+                <span className="text-xs text-muted-foreground">생성한 게시글</span>
+              </div>
+
+              <div className="flex flex-col items-center justify-center rounded-lg border p-3">
+                <FileText className="h-8 w-8 text-red-500" />
+                <span className="mt-2 text-2xl font-bold">{user.deleted_post_count || 0}</span>
+                <span className="text-xs text-muted-foreground">삭제한 게시글</span>
               </div>
 
               <div className="flex flex-col items-center justify-center rounded-lg border p-3">
                 <ThumbsUp className="h-8 w-8 text-amber-500" />
                 <span className="mt-2 text-2xl font-bold">{user.like_count}</span>
                 <span className="text-xs text-muted-foreground">좋아요</span>
+              </div>
+
+              {/* 두 번째 줄: 댓글 관련 통계 및 싫어요 */}
+              <div className="flex flex-col items-center justify-center rounded-lg border p-3">
+                <MessageSquare className="h-8 w-8 text-blue-500" />
+                <span className="mt-2 text-2xl font-bold">{user.comment_count}</span>
+                <span className="text-xs text-muted-foreground">댓글</span>
+              </div>
+
+              <div className="flex flex-col items-center justify-center rounded-lg border p-3">
+                <MessageSquare className="h-8 w-8 text-green-500" />
+                <span className="mt-2 text-2xl font-bold">{user.created_comment_count || user.comment_count}</span>
+                <span className="text-xs text-muted-foreground">생성한 댓글</span>
+              </div>
+
+              <div className="flex flex-col items-center justify-center rounded-lg border p-3">
+                <MessageSquare className="h-8 w-8 text-red-500" />
+                <span className="mt-2 text-2xl font-bold">{user.deleted_comment_count || 0}</span>
+                <span className="text-xs text-muted-foreground">삭제한 댓글</span>
               </div>
 
               <div className="flex flex-col items-center justify-center rounded-lg border p-3">
@@ -416,7 +465,7 @@ export function UserDetail({ userId }: UserDetailProps) {
               <TabsTrigger
                 value="post"
                 onClick={() => {
-                  setActivityType("create_post")
+                  setActivityType("post")
                   setActivityPage(1)
                   router.push(`/admin/users/${userId}?tab=post`)
                 }}
@@ -426,7 +475,7 @@ export function UserDetail({ userId }: UserDetailProps) {
               <TabsTrigger
                 value="comment"
                 onClick={() => {
-                  setActivityType("create_comment")
+                  setActivityType("comment")
                   setActivityPage(1)
                   router.push(`/admin/users/${userId}?tab=comment`)
                 }}
@@ -541,7 +590,7 @@ export function UserDetail({ userId }: UserDetailProps) {
                       <Button
                         variant="outline"
                         onClick={() => {
-                          setSelectedRole(user.role);
+                          setSelectedRole(user.role)
                           setRoleDialogOpen(true)
                         }}
                         disabled={actionLoading}
@@ -720,14 +769,25 @@ export function UserDetail({ userId }: UserDetailProps) {
       <div className="space-y-4">
         {activities.map((activity) => (
           <div key={activity.id} className="flex items-start gap-3 border-b pb-4 last:border-0">
+            {/* 게시물 생성 아이콘 */}
             {activity.action_type === "create_post" && <FileText className="h-5 w-5 text-blue-500 mt-0.5" />}
+
+            {/* 게시물 삭제 아이콘 - 빨간색으로 변경 */}
+            {activity.action_type === "delete_post" && <FileText className="h-5 w-5 text-red-500 mt-0.5" />}
+
+            {/* 댓글 생성 아이콘 */}
             {activity.action_type === "create_comment" && <MessageSquare className="h-5 w-5 text-green-500 mt-0.5" />}
+
+            {/* 댓글 삭제 아이콘 - 빨간색으로 변경 */}
+            {activity.action_type === "delete_comment" && <MessageSquare className="h-5 w-5 text-red-500 mt-0.5" />}
+
+            {/* 기존 아이콘들 */}
             {activity.action_type === "like" && <ThumbsUp className="h-5 w-5 text-amber-500 mt-0.5" />}
             {activity.action_type === "dislike" && <ThumbsDown className="h-5 w-5 text-red-500 mt-0.5" />}
             {activity.action_type === "report" && <Flag className="h-5 w-5 text-purple-500 mt-0.5" />}
-            {!["create_post", "create_comment", "like", "dislike", "report"].includes(activity.action_type) && (
-              <Clock className="h-5 w-5 text-gray-500 mt-0.5" />
-            )}
+            {!["create_post", "delete_post", "create_comment", "delete_comment", "like", "dislike", "report"].includes(
+              activity.action_type,
+            ) && <Clock className="h-5 w-5 text-gray-500 mt-0.5" />}
 
             <div>
               <p className="font-medium">
@@ -742,7 +802,19 @@ export function UserDetail({ userId }: UserDetailProps) {
                 {activity.action_type === "report" && "신고"}
                 {activity.action_type === "login" && "로그인"}
                 {activity.action_type === "update_profile" && "프로필 수정"}
-                {!["create_post", "create_comment", "update_post", "update_comment", "delete_post", "delete_comment", "like", "dislike", "report", "login", "update_profile"].includes(activity.action_type) && activity.action_type}
+                {![
+                  "create_post",
+                  "create_comment",
+                  "update_post",
+                  "update_comment",
+                  "delete_post",
+                  "delete_comment",
+                  "like",
+                  "dislike",
+                  "report",
+                  "login",
+                  "update_profile",
+                ].includes(activity.action_type) && activity.action_type}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">{activity.description}</p>
               <p className="mt-1 text-xs text-muted-foreground">{new Date(activity.created_at).toLocaleString()}</p>

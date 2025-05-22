@@ -62,6 +62,8 @@ export interface PostWithDetails extends Post {
   comment_count: number;
   like_count: number;
   dislike_count: number;
+  liked_by_me?: boolean;
+  disliked_by_me?: boolean;
 }
 
 /**

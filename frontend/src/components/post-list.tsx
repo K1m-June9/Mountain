@@ -67,7 +67,7 @@ export default function PostList({ institutionId, showTags = false }: PostListPr
       try {
         // 공지사항 가져오기
         const noticesResponse = await noticeService.getNotices({
-          important_only: true,
+          important_only: false,
           limit: 5 // 중요 공지사항 5개만 가져오기
         })
         

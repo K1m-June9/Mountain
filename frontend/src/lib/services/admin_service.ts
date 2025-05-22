@@ -740,6 +740,7 @@ export class AdminService {
   async unpinNotice(noticeId: ID): Promise<ApiResult<Notice>> {
     return await api.put<Notice>(`/notices/${noticeId}`, { is_important: false });
   }
+  
   /**
    * 활동 로그 조회
    * @param params 필터링 옵션
@@ -747,6 +748,27 @@ export class AdminService {
    */
   async getActivityLogs(params?: ActivityLogFilter): Promise<ApiResult<ActivityLog[]>> {
     return await api.get<ActivityLog[]>("/admin/activity-logs", params);
+  }
+
+    /**
+   * 사용자의 반응(좋아요/싫어요) 내역 조회
+   * @param userId 사용자 ID
+   * @param skip 건너뛸 항목 수
+   * @param limit 가져올 항목 수
+   * @param type 반응 타입 필터 (like 또는 dislike)
+   * @returns 반응 내역 및 페이지네이션 정보
+   */
+  async getUserReactions(
+    userId: ID, 
+    skip: number = 0, 
+    limit: number = 50, 
+    type?: string
+  ): Promise<ApiResult<UserActivitiesResponse>> {
+    const params: Record<string, any> = { skip, limit };
+    if (type) {
+      params.type = type;
+    }
+    return await api.get<UserActivitiesResponse>(`/admin/users/${userId}/reactions`, params);
   }
   
   /**

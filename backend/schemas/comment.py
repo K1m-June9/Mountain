@@ -40,8 +40,12 @@ class CommentWithUser(Comment):
     user: User
     like_count: int = 0
     dislike_count: int = 0
-
+    liked_by_me: bool = False
+    disliked_by_me: bool = False
+    post_title: str = ""  # 게시물 제목 필드 추가
 
 # 답글이 포함된 댓글
 class CommentWithReplies(CommentWithUser):
     replies: List['CommentWithUser'] = []
+
+# backend/schemas/comment.py 수정
