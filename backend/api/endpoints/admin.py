@@ -128,45 +128,6 @@ def get_admin_stats(
 #     return settings
 
 
-@router.put("/settings/{key_name}", response_model=schemas.Setting)
-def update_setting(
-    *,
-    db: Session = Depends(deps.get_db),
-    key_name: str,
-    setting_in: schemas.SettingUpdate,
-    current_user: models.User = Depends(deps.get_optional_current_user),
-) -> Any:
-    """
-    시스템 설정 업데이트 (관리자만 가능)
-    """
-    # if current_user.role != "admin":
-    #     raise HTTPException(status_code=403, detail="Not enough permissions")
-    
-    setting = db.query(models.Setting).filter(models.Setting.key_name == key_name).first()
-    if not setting:
-        raise HTTPException(status_code=404, detail="Setting not found")
-    
-    setting.value = setting_in.value
-    if setting_in.description is not None:
-        setting.description = setting_in.description
-    
-    db.add(setting)
-    db.commit()
-    db.refresh(setting)
-    
-    # 활동 로그 기록
-    activity_log = models.ActivityLog(
-        user_id=current_user.id,
-        action_type="update_setting",
-        description=f"Admin {current_user.username} updated setting {setting.key_name}",
-        ip_address="127.0.0.1"  # 실제 구현에서는 요청의 IP 주소를 가져와야 함
-    )
-    db.add(activity_log)
-    db.commit()
-    
-    return setting
-
-
 @router.get("/activity-logs", response_model=List[Dict[str, Any]])
 def get_activity_logs(
     db: Session = Depends(deps.get_db),
@@ -860,6 +821,7 @@ def update_section_settings(
     """
     특정 섹션의 설정을 업데이트합니다.
     """
+    print(f"Received settings data for section {section}: {settings_data}") # 디버깅
     # if current_user.role != "admin":
     #     raise HTTPException(status_code=403, detail="Not enough permissions")
     
@@ -948,6 +910,44 @@ def reset_section_settings(
     
     # 초기화된 설정 반환
     return DEFAULT_SETTINGS[section]
+
+@router.put("/settings/{key_name}", response_model=schemas.Setting)
+def update_setting(
+    *,
+    db: Session = Depends(deps.get_db),
+    key_name: str,
+    setting_in: schemas.SettingUpdate,
+    current_user: models.User = Depends(deps.get_optional_current_user),
+) -> Any:
+    """
+    시스템 설정 업데이트 (관리자만 가능)
+    """
+    # if current_user.role != "admin":
+    #     raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    setting = db.query(models.Setting).filter(models.Setting.key_name == key_name).first()
+    if not setting:
+        raise HTTPException(status_code=404, detail="Setting not found")
+    
+    setting.value = setting_in.value
+    if setting_in.description is not None:
+        setting.description = setting_in.description
+    
+    db.add(setting)
+    db.commit()
+    db.refresh(setting)
+    
+    # 활동 로그 기록
+    activity_log = models.ActivityLog(
+        user_id=current_user.id,
+        action_type="update_setting",
+        description=f"Admin {current_user.username} updated setting {setting.key_name}",
+        ip_address="127.0.0.1"  # 실제 구현에서는 요청의 IP 주소를 가져와야 함
+    )
+    db.add(activity_log)
+    db.commit()
+    
+    return setting
 
 @router.get("/user-dashboard-stats", response_model=schemas.UserDashboardStats)
 def get_user_dashboard_stats(

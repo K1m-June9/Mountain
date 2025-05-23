@@ -1,7 +1,6 @@
 // src/hooks/use-settings.ts
 "use client"
 // src/hooks/use-settings.ts
-import settingsService from "@/lib/services/settings_service"
 import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-sonner"
 import adminService from "@/lib/services/admin_service"
