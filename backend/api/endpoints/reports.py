@@ -2,6 +2,7 @@ from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from backend import models, schemas
 from backend.api import deps
@@ -175,6 +176,45 @@ def create_report(
     db.commit()
     db.refresh(report)
     
+    # 자동 숨김 처리 로직
+    # 1. 설정값 조회
+    auto_hide_threshold_setting = db.query(models.Setting).filter(
+        models.Setting.key_name == "report.autoHideThreshold"
+    ).first()
+    
+    if auto_hide_threshold_setting:
+        try:
+            auto_hide_threshold = int(auto_hide_threshold_setting.value)
+            
+            # 2. 해당 게시물/댓글의 총 신고 수 확인
+            if report_in.post_id:
+                # 게시물에 대한 신고 수 계산
+                total_reports = db.query(func.count(models.Report.id)).filter(
+                    models.Report.post_id == report_in.post_id
+                ).scalar()
+                
+                # 임계값 도달 시 게시물 숨김 처리
+                if total_reports >= auto_hide_threshold:
+                    post.is_hidden = True
+                    db.add(post)
+                    db.commit()
+                    
+            elif report_in.comment_id:
+                # 댓글에 대한 신고 수 계산
+                total_reports = db.query(func.count(models.Report.id)).filter(
+                    models.Report.comment_id == report_in.comment_id
+                ).scalar()
+                
+                # 임계값 도달 시 댓글 숨김 처리
+                if total_reports >= auto_hide_threshold:
+                    comment.is_hidden = True
+                    db.add(comment)
+                    db.commit()
+                    
+        except ValueError:
+            # 설정값이 숫자가 아닌 경우 무시
+            pass
+    
     # 활동 로그 기록
     activity_log = models.ActivityLog(
         user_id=current_user.id,
@@ -268,6 +308,18 @@ def reject_report(
     # 신고 상태 업데이트
     report.status = "rejected"
     report.reviewed_by = current_user.id
+    
+    # 신고 거부 시 숨김 해제 처리
+    if report.post_id:
+        post = db.query(models.Post).filter(models.Post.id == report.post_id).first()
+        if post and post.is_hidden:
+            post.is_hidden = False
+            db.add(post)
+    elif report.comment_id:
+        comment = db.query(models.Comment).filter(models.Comment.id == report.comment_id).first()
+        if comment and comment.is_hidden:
+            comment.is_hidden = False
+            db.add(comment)
     
     db.add(report)
     db.commit()
