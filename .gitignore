@@ -11,3 +11,6 @@ __pycache__/
 *$py.class
 *.so
 .Python
+
+# 분석보고서
+re/
